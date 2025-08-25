@@ -27,6 +27,39 @@ TEST(SlickLoggerTest, BasicLogging) {
     EXPECT_TRUE(line.find("Test message") != std::string::npos);
 }
 
+TEST(SlickLoggerTest, LogFilter) {
+    // Clean up any existing log file
+    std::filesystem::remove("test.log");
+
+    // Initialize logger
+    slick_logger::Logger::instance().init("test.log", 1024);
+    slick_logger::Logger::instance().set_log_level(slick_logger::LogLevel::INFO);
+
+    LOG_INFO("Test message");
+    LOG_DEBUG("This debug message should not appear");
+    LOG_WARN("This is a warning");
+    LOG_TRACE("This trace message should not appear");
+    LOG_ERROR("This is an error");
+    LOG_FATAL("This is fatal");
+
+    // Shutdown
+    slick_logger::Logger::instance().shutdown();
+
+    // Check if file was created and contains the message
+    ASSERT_TRUE(std::filesystem::exists("test.log"));
+
+    std::ifstream log_file("test.log");
+    std::string line;
+    std::getline(log_file, line);
+    EXPECT_TRUE(line.find("Test message") != std::string::npos);
+    std::getline(log_file, line);
+    EXPECT_TRUE(line.find("This is a warning") != std::string::npos);
+    std::getline(log_file, line);
+    EXPECT_TRUE(line.find("This is an error") != std::string::npos);
+    std::getline(log_file, line);
+    EXPECT_TRUE(line.find("This is fatal") != std::string::npos);
+}
+
 TEST(SlickLoggerTest, MultiThreadedLogging) {
     std::filesystem::remove("test_mt.log");
 

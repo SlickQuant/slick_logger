@@ -46,7 +46,7 @@ enum class LogLevel : uint8_t {
     INFO = 2,
     WARN = 3,
     ERR = 4,
-    FATAL = 5
+    FATAL = 5,
 };
 
 struct LogEntry {
@@ -61,6 +61,10 @@ public:
 
     void init(const std::filesystem::path& log_file, size_t queue_size = 65536);
 
+    void set_log_level(LogLevel level) {
+        log_level_.store(level, std::memory_order_release);
+    }
+
     template<typename... Args>
     void log(LogLevel level, const std::string& format, Args&&... args);
 
@@ -74,12 +78,14 @@ private:
     Logger& operator=(const Logger&) = delete;
 
     void writer_thread_func();
+    void write_log_entry(std::ofstream& stream, const LogEntry* entry_ptr, uint32_t count);
 
     slick::SlickQueue<LogEntry>* queue_;
     std::filesystem::path log_file_;
     std::thread writer_thread_;
     std::atomic<bool> running_{false};
     uint64_t read_index_{0};
+    std::atomic<LogLevel> log_level_{LogLevel::TRACE};
 };
 
 // Implementation (header-only library)
@@ -119,7 +125,10 @@ inline void Logger::init(const std::filesystem::path& log_file, size_t queue_siz
 
 template<typename... Args>
 inline void Logger::log(LogLevel level, const std::string& format, Args&&... args) {
-    if (!running_ || !queue_) return;
+    if (!running_ || !queue_ || level < log_level_.load(std::memory_order_relaxed))
+    {
+        return;
+    }
 
     auto now = std::chrono::system_clock::now();
     auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
@@ -131,10 +140,11 @@ inline void Logger::log(LogLevel level, const std::string& format, Args&&... arg
         }, args_tuple);
     };
 
-    LogEntry entry{level, std::move(formatter), static_cast<uint64_t>(ns)};
-
     uint64_t index = queue_->reserve();
-    *(*queue_)[index] = entry;
+    auto &entry_ref = *(*queue_)[index];
+    entry_ref.level = level;
+    entry_ref.formatter = std::move(formatter);
+    entry_ref.timestamp = static_cast<uint64_t>(ns);
     queue_->publish(index);
 }
 
@@ -162,29 +172,7 @@ inline void Logger::writer_thread_func() {
     while (running_) {
         auto [entry_ptr, count] = queue_->read(read_index_);
         if (entry_ptr) {
-            for (uint32_t i = 0; i < count; ++i) {
-                const LogEntry& entry = entry_ptr[i];
-                time_t time_val = static_cast<time_t>(entry.timestamp / 1000000000); // Convert nanoseconds to seconds
-                std::tm tm = *std::localtime(&time_val);
-
-                std::string level_str;
-                switch (entry.level) {
-                    case LogLevel::TRACE: level_str = "TRACE"; break;
-                    case LogLevel::DEBUG: level_str = "DEBUG"; break;
-                    case LogLevel::INFO: level_str = "INFO"; break;
-                    case LogLevel::WARN: level_str = "WARN"; break;
-                    case LogLevel::ERR: level_str = "ERROR"; break;
-                    case LogLevel::FATAL: level_str = "FATAL"; break;
-                }
-
-                char time_str[20];
-                std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm);
-
-                // Format the message in the background thread
-                std::string message = entry.formatter();
-                log_stream << time_str << " [" << level_str << "] " << message << std::endl;
-            }
-            log_stream.flush();
+            write_log_entry(log_stream, entry_ptr, count);
         } else {
             std::this_thread::sleep_for(std::chrono::milliseconds(1)); // Small delay if no data
         }
@@ -196,29 +184,33 @@ inline void Logger::writer_thread_func() {
         if (!entry_ptr || count == 0) {
             break;
         }
-        for (uint32_t i = 0; i < count; ++i) {
-            const LogEntry& entry = entry_ptr[i];
-            time_t time_val = static_cast<time_t>(entry.timestamp / 1000000000);
-            std::tm tm = *std::localtime(&time_val);
-
-            std::string level_str;
-            switch (entry.level) {
-                case LogLevel::TRACE: level_str = "TRACE"; break;
-                case LogLevel::DEBUG: level_str = "DEBUG"; break;
-                case LogLevel::INFO: level_str = "INFO"; break;
-                case LogLevel::WARN: level_str = "WARN"; break;
-                case LogLevel::ERR: level_str = "ERROR"; break;
-                case LogLevel::FATAL: level_str = "FATAL"; break;
-            }
-
-            char time_str[20];
-            std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm);
-
-            std::string message = entry.formatter();
-            log_stream << time_str << " [" << level_str << "] " << message << std::endl;
-        }
-        log_stream.flush();
+        write_log_entry(log_stream, entry_ptr, count);
     }
+}
+
+inline void Logger::write_log_entry(std::ofstream& log_stream, const LogEntry* entry_ptr, uint32_t count) {
+    for (uint32_t i = 0; i < count; ++i) {
+        const LogEntry& entry = entry_ptr[i];
+        time_t time_val = static_cast<time_t>(entry.timestamp / 1000000000);
+        std::tm tm = *std::localtime(&time_val);
+
+        std::string level_str;
+        switch (entry.level) {
+            case LogLevel::TRACE: level_str = "TRACE"; break;
+            case LogLevel::DEBUG: level_str = "DEBUG"; break;
+            case LogLevel::INFO: level_str = "INFO"; break;
+            case LogLevel::WARN: level_str = "WARN"; break;
+            case LogLevel::ERR: level_str = "ERROR"; break;
+            case LogLevel::FATAL: level_str = "FATAL"; break;
+        }
+
+        char time_str[20];
+        std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm);
+
+        std::string message = entry.formatter();
+        log_stream << time_str << " [" << level_str << "] " << message << std::endl;
+    }
+    log_stream.flush();
 }
 
 // Macros for easy logging
