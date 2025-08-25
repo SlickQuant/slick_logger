@@ -1,0 +1,45 @@
+#include <slick_logger/logger.hpp>
+#include <thread>
+#include <chrono>
+
+int main() {
+    // Initialize the logger
+    slick_logger::Logger::instance().init("example.log", 1024);
+
+    // Log some messages with formatting
+    LOG_INFO("Logger initialized");
+    LOG_DEBUG("Debug message: value = {}", 42);
+    LOG_WARN("Warning: {} items processed", 150);
+    LOG_ERROR("Error occurred in {} at line {}", "function_name", 123);
+
+    // Demonstrate variadic arguments
+    std::string user = "Alice";
+    int age = 30;
+    double balance = 1234.56;
+    LOG_INFO("User {} is {} years old with balance ${:.2f}", user, age, balance);
+
+    // Simulate multi-threaded logging
+    std::thread t1([]() {
+        for (int i = 0; i < 10; ++i) {
+            LOG_INFO("Thread 1: iteration {} of {}", i + 1, 10);
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+    });
+
+    std::thread t2([]() {
+        for (int i = 0; i < 10; ++i) {
+            LOG_INFO("Thread 2: processing item {} at {}", i, std::chrono::system_clock::now());
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+    });
+
+    t1.join();
+    t2.join();
+
+    LOG_INFO("Logging complete - all messages were formatted in background thread");
+
+    // Shutdown the logger
+    slick_logger::Logger::instance().shutdown();
+
+    return 0;
+}

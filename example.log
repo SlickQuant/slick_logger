@@ -1,0 +1,26 @@
+2025-08-25 11:27:14 [INFO] Logger initialized
+2025-08-25 11:27:14 [DEBUG] Debug message: value = 42
+2025-08-25 11:27:14 [WARN] Warning: 150 items processed
+2025-08-25 11:27:14 [ERROR] Error occurred in function_name at line 123
+2025-08-25 11:27:14 [INFO] User Alice is 30 years old with balance $1234.56
+2025-08-25 11:27:14 [INFO] Thread 1: iteration 1 of 10
+2025-08-25 11:27:14 [INFO] Thread 2: processing item 0 at 2025-08-25 16:27:14.6080609
+2025-08-25 11:27:14 [INFO] Thread 1: iteration 2 of 10
+2025-08-25 11:27:14 [INFO] Thread 2: processing item 1 at 2025-08-25 16:27:14.6334325
+2025-08-25 11:27:14 [INFO] Thread 1: iteration 3 of 10
+2025-08-25 11:27:14 [INFO] Thread 2: processing item 2 at 2025-08-25 16:27:14.6486717
+2025-08-25 11:27:14 [INFO] Thread 1: iteration 4 of 10
+2025-08-25 11:27:14 [INFO] Thread 2: processing item 3 at 2025-08-25 16:27:14.6642710
+2025-08-25 11:27:14 [INFO] Thread 2: processing item 4 at 2025-08-25 16:27:14.6796054
+2025-08-25 11:27:14 [INFO] Thread 1: iteration 5 of 10
+2025-08-25 11:27:14 [INFO] Thread 1: iteration 6 of 10
+2025-08-25 11:27:14 [INFO] Thread 2: processing item 5 at 2025-08-25 16:27:14.6947609
+2025-08-25 11:27:14 [INFO] Thread 1: iteration 7 of 10
+2025-08-25 11:27:14 [INFO] Thread 2: processing item 6 at 2025-08-25 16:27:14.7103812
+2025-08-25 11:27:14 [INFO] Thread 1: iteration 8 of 10
+2025-08-25 11:27:14 [INFO] Thread 2: processing item 7 at 2025-08-25 16:27:14.7257334
+2025-08-25 11:27:14 [INFO] Thread 1: iteration 9 of 10
+2025-08-25 11:27:14 [INFO] Thread 2: processing item 8 at 2025-08-25 16:27:14.7413333
+2025-08-25 11:27:14 [INFO] Thread 2: processing item 9 at 2025-08-25 16:27:14.7565909
+2025-08-25 11:27:14 [INFO] Thread 1: iteration 10 of 10
+2025-08-25 11:27:14 [INFO] Logging complete - all messages were formatted in background thread
