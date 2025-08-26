@@ -60,9 +60,20 @@ public:
     void clear_sinks();
     
     void add_console_sink(bool use_colors = true, bool use_stderr_for_errors = true);
+    void add_console_sink(TimestampFormatter::Format timestamp_format, bool use_colors = true, bool use_stderr_for_errors = true);
+    void add_console_sink(const std::string& custom_timestamp_format, bool use_colors = true, bool use_stderr_for_errors = true);
+    
     void add_file_sink(const std::filesystem::path& path, const RotationConfig& config = {});
+    void add_file_sink(const std::filesystem::path& path, TimestampFormatter::Format timestamp_format, const RotationConfig& config = {});
+    void add_file_sink(const std::filesystem::path& path, const std::string& custom_timestamp_format, const RotationConfig& config = {});
+    
     void add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config);
+    void add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config, TimestampFormatter::Format timestamp_format);
+    void add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config, const std::string& custom_timestamp_format);
+    
     void add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config = {});
+    void add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config, TimestampFormatter::Format timestamp_format);
+    void add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config, const std::string& custom_timestamp_format);
 
     void set_log_level(LogLevel level) {
         log_level_.store(level, std::memory_order_release);
@@ -208,16 +219,48 @@ inline void Logger::add_console_sink(bool use_colors, bool use_stderr_for_errors
     add_sink(std::make_shared<ConsoleSink>(use_colors, use_stderr_for_errors));
 }
 
+inline void Logger::add_console_sink(TimestampFormatter::Format timestamp_format, bool use_colors, bool use_stderr_for_errors) {
+    add_sink(std::make_shared<ConsoleSink>(use_colors, use_stderr_for_errors, timestamp_format));
+}
+
+inline void Logger::add_console_sink(const std::string& custom_timestamp_format, bool use_colors, bool use_stderr_for_errors) {
+    add_sink(std::make_shared<ConsoleSink>(custom_timestamp_format, use_colors, use_stderr_for_errors));
+}
+
 inline void Logger::add_file_sink(const std::filesystem::path& path, const RotationConfig& config) {
     add_sink(std::make_shared<FileSink>(path));
+}
+
+inline void Logger::add_file_sink(const std::filesystem::path& path, TimestampFormatter::Format timestamp_format, const RotationConfig& config) {
+    add_sink(std::make_shared<FileSink>(path, timestamp_format));
+}
+
+inline void Logger::add_file_sink(const std::filesystem::path& path, const std::string& custom_timestamp_format, const RotationConfig& config) {
+    add_sink(std::make_shared<FileSink>(path, custom_timestamp_format));
 }
 
 inline void Logger::add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config) {
     add_sink(std::make_shared<RotatingFileSink>(path, config));
 }
 
+inline void Logger::add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config, TimestampFormatter::Format timestamp_format) {
+    add_sink(std::make_shared<RotatingFileSink>(path, config, timestamp_format));
+}
+
+inline void Logger::add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config, const std::string& custom_timestamp_format) {
+    add_sink(std::make_shared<RotatingFileSink>(path, config, custom_timestamp_format));
+}
+
 inline void Logger::add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config) {
     add_sink(std::make_shared<DailyFileSink>(path, config));
+}
+
+inline void Logger::add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config, TimestampFormatter::Format timestamp_format) {
+    add_sink(std::make_shared<DailyFileSink>(path, config, timestamp_format));
+}
+
+inline void Logger::add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config, const std::string& custom_timestamp_format) {
+    add_sink(std::make_shared<DailyFileSink>(path, config, custom_timestamp_format));
 }
 
 template<typename... Args>

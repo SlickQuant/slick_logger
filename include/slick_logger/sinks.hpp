@@ -29,6 +29,8 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <iomanip>
+#include <sstream>
 
 namespace slick_logger {
 
@@ -39,6 +41,85 @@ enum class LogLevel : uint8_t {
     WARN = 3,
     ERR = 4,
     FATAL = 5,
+};
+
+class TimestampFormatter {
+public:
+    enum class Format {
+        DEFAULT,          // 2024-08-26 15:30:45
+        WITH_MICROSECONDS, // 2024-08-26 15:30:45.123456
+        WITH_MILLISECONDS, // 2024-08-26 15:30:45.123
+        ISO8601,          // 2024-08-26T15:30:45.123456Z
+        TIME_ONLY,        // 15:30:45.123456
+        CUSTOM            // User-defined format
+    };
+
+    TimestampFormatter(Format fmt = Format::WITH_MICROSECONDS) : format_(fmt) {}
+    
+    TimestampFormatter(const std::string& custom_format) 
+        : format_(Format::CUSTOM), custom_format_(custom_format) {}
+
+    std::string format_timestamp(uint64_t timestamp_ns) const {
+        auto duration = std::chrono::nanoseconds(timestamp_ns);
+        auto time_point = std::chrono::system_clock::time_point(
+            std::chrono::duration_cast<std::chrono::system_clock::duration>(duration));
+        
+        time_t time_val = std::chrono::system_clock::to_time_t(time_point);
+        std::tm tm = *std::localtime(&time_val);
+        
+        // Extract microseconds and milliseconds
+        auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(duration).count() % 1000000;
+        auto milliseconds = microseconds / 1000;
+        
+        std::ostringstream oss;
+        
+        switch (format_) {
+            case Format::DEFAULT:
+                oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+                break;
+                
+            case Format::WITH_MICROSECONDS:
+                oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S")
+                    << "." << std::setfill('0') << std::setw(6) << microseconds;
+                break;
+                
+            case Format::WITH_MILLISECONDS:
+                oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S")
+                    << "." << std::setfill('0') << std::setw(3) << milliseconds;
+                break;
+                
+            case Format::ISO8601:
+                oss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%S")
+                    << "." << std::setfill('0') << std::setw(6) << microseconds << "Z";
+                break;
+                
+            case Format::TIME_ONLY:
+                oss << std::put_time(&tm, "%H:%M:%S")
+                    << "." << std::setfill('0') << std::setw(6) << microseconds;
+                break;
+                
+            case Format::CUSTOM:
+                if (!custom_format_.empty()) {
+                    // Handle %f placeholder for microseconds in custom format
+                    std::string format = custom_format_;
+                    size_t pos = format.find("%f");
+                    if (pos != std::string::npos) {
+                        format.replace(pos, 2, std::to_string(microseconds));
+                    }
+                    oss << std::put_time(&tm, format.c_str());
+                    return oss.str();
+                } else {
+                    oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+                }
+                break;
+        }
+        
+        return oss.str();
+    }
+
+private:
+    Format format_;
+    std::string custom_format_;
 };
 
 struct LogEntry {
@@ -63,7 +144,11 @@ struct RotationConfig {
 
 class ConsoleSink : public ISink {
 public:
-    explicit ConsoleSink(bool use_colors = true, bool use_stderr_for_errors = true);
+    explicit ConsoleSink(bool use_colors = true, bool use_stderr_for_errors = true, 
+                        TimestampFormatter::Format timestamp_format = TimestampFormatter::Format::WITH_MICROSECONDS);
+    
+    explicit ConsoleSink(const std::string& custom_timestamp_format, bool use_colors = true, 
+                        bool use_stderr_for_errors = true);
     
     void write(const LogEntry& entry) override;
     void flush() override;
@@ -75,11 +160,15 @@ private:
     
     bool use_colors_;
     bool use_stderr_for_errors_;
+    TimestampFormatter timestamp_formatter_;
 };
 
 class FileSink : public ISink {
 public:
-    explicit FileSink(const std::filesystem::path& file_path);
+    explicit FileSink(const std::filesystem::path& file_path, 
+                     TimestampFormatter::Format timestamp_format = TimestampFormatter::Format::WITH_MICROSECONDS);
+    
+    explicit FileSink(const std::filesystem::path& file_path, const std::string& custom_timestamp_format);
     
     void write(const LogEntry& entry) override;
     void flush() override;
@@ -89,11 +178,16 @@ protected:
     
     std::filesystem::path file_path_;
     std::ofstream file_stream_;
+    TimestampFormatter timestamp_formatter_;
 };
 
 class RotatingFileSink : public FileSink {
 public:
-    RotatingFileSink(const std::filesystem::path& base_path, const RotationConfig& config);
+    RotatingFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
+                    TimestampFormatter::Format timestamp_format = TimestampFormatter::Format::WITH_MICROSECONDS);
+    
+    RotatingFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
+                    const std::string& custom_timestamp_format);
     
     void write(const LogEntry& entry) override;
 
@@ -109,7 +203,11 @@ private:
 
 class DailyFileSink : public FileSink {
 public:
-    DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config);
+    DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
+                 TimestampFormatter::Format timestamp_format = TimestampFormatter::Format::WITH_MICROSECONDS);
+    
+    DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
+                 const std::string& custom_timestamp_format);
     
     void write(const LogEntry& entry) override;
 
@@ -117,7 +215,6 @@ protected:
     void check_rotation();
     virtual std::string get_date_string();
 
-private:
     std::filesystem::path get_daily_filename();
     std::filesystem::path get_dated_filename(const std::string& date);
     
@@ -128,8 +225,16 @@ private:
 
 // Implementation (header-only library)
 
-inline ConsoleSink::ConsoleSink(bool use_colors, bool use_stderr_for_errors)
-    : use_colors_(use_colors), use_stderr_for_errors_(use_stderr_for_errors) {
+inline ConsoleSink::ConsoleSink(bool use_colors, bool use_stderr_for_errors, 
+                                TimestampFormatter::Format timestamp_format)
+    : use_colors_(use_colors), use_stderr_for_errors_(use_stderr_for_errors), 
+      timestamp_formatter_(timestamp_format) {
+}
+
+inline ConsoleSink::ConsoleSink(const std::string& custom_timestamp_format, bool use_colors, 
+                                bool use_stderr_for_errors)
+    : use_colors_(use_colors), use_stderr_for_errors_(use_stderr_for_errors), 
+      timestamp_formatter_(custom_timestamp_format) {
 }
 
 inline void ConsoleSink::write(const LogEntry& entry) {
@@ -148,9 +253,6 @@ inline void ConsoleSink::flush() {
 }
 
 inline std::string ConsoleSink::format_log_entry(const LogEntry& entry) {
-    time_t time_val = static_cast<time_t>(entry.timestamp / 1000000000);
-    std::tm tm = *std::localtime(&time_val);
-
     std::string level_str;
     switch (entry.level) {
         case LogLevel::TRACE: level_str = "TRACE"; break;
@@ -161,11 +263,9 @@ inline std::string ConsoleSink::format_log_entry(const LogEntry& entry) {
         case LogLevel::FATAL: level_str = "FATAL"; break;
     }
 
-    char time_str[20];
-    std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm);
-
+    std::string timestamp = timestamp_formatter_.format_timestamp(entry.timestamp);
     std::string message = entry.formatter();
-    std::string result = std::string(time_str) + " [" + level_str + "] " + message;
+    std::string result = timestamp + " [" + level_str + "] " + message;
     
     if (use_colors_) {
         return get_color_code(entry.level) + result + get_reset_code();
@@ -190,8 +290,17 @@ inline std::string ConsoleSink::get_reset_code() {
     return "\033[0m";
 }
 
-inline FileSink::FileSink(const std::filesystem::path& file_path)
-    : file_path_(file_path) {
+inline FileSink::FileSink(const std::filesystem::path& file_path, 
+                          TimestampFormatter::Format timestamp_format)
+    : file_path_(file_path), timestamp_formatter_(timestamp_format) {
+    file_stream_.open(file_path_, std::ios::app);
+    if (!file_stream_) {
+        throw std::runtime_error("Failed to open log file: " + file_path_.string());
+    }
+}
+
+inline FileSink::FileSink(const std::filesystem::path& file_path, const std::string& custom_timestamp_format)
+    : file_path_(file_path), timestamp_formatter_(custom_timestamp_format) {
     file_stream_.open(file_path_, std::ios::app);
     if (!file_stream_) {
         throw std::runtime_error("Failed to open log file: " + file_path_.string());
@@ -211,9 +320,6 @@ inline void FileSink::flush() {
 }
 
 inline std::string FileSink::format_log_entry(const LogEntry& entry) {
-    time_t time_val = static_cast<time_t>(entry.timestamp / 1000000000);
-    std::tm tm = *std::localtime(&time_val);
-
     std::string level_str;
     switch (entry.level) {
         case LogLevel::TRACE: level_str = "TRACE"; break;
@@ -224,15 +330,22 @@ inline std::string FileSink::format_log_entry(const LogEntry& entry) {
         case LogLevel::FATAL: level_str = "FATAL"; break;
     }
 
-    char time_str[20];
-    std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm);
-
+    std::string timestamp = timestamp_formatter_.format_timestamp(entry.timestamp);
     std::string message = entry.formatter();
-    return std::string(time_str) + " [" + level_str + "] " + message;
+    return timestamp + " [" + level_str + "] " + message;
 }
 
-inline RotatingFileSink::RotatingFileSink(const std::filesystem::path& base_path, const RotationConfig& config)
-    : FileSink(base_path), config_(config), base_path_(base_path), current_file_size_(0) {
+inline RotatingFileSink::RotatingFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
+                                        TimestampFormatter::Format timestamp_format)
+    : FileSink(base_path, timestamp_format), config_(config), base_path_(base_path), current_file_size_(0) {
+    if (std::filesystem::exists(base_path_)) {
+        current_file_size_ = std::filesystem::file_size(base_path_);
+    }
+}
+
+inline RotatingFileSink::RotatingFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
+                                        const std::string& custom_timestamp_format)
+    : FileSink(base_path, custom_timestamp_format), config_(config), base_path_(base_path), current_file_size_(0) {
     if (std::filesystem::exists(base_path_)) {
         current_file_size_ = std::filesystem::file_size(base_path_);
     }
@@ -283,8 +396,16 @@ inline std::filesystem::path RotatingFileSink::get_rotated_filename(size_t index
     return base_path_.parent_path() / filename;
 }
 
-inline DailyFileSink::DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config)
-    : FileSink(base_path), config_(config), base_path_(base_path) {
+inline DailyFileSink::DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
+                                  TimestampFormatter::Format timestamp_format)
+    : FileSink(base_path, timestamp_format), config_(config), base_path_(base_path) {
+    current_date_ = get_date_string();
+    // Keep logging to base_path (e.g., daily.log) - FileSink constructor already opened it
+}
+
+inline DailyFileSink::DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
+                                  const std::string& custom_timestamp_format)
+    : FileSink(base_path, custom_timestamp_format), config_(config), base_path_(base_path) {
     current_date_ = get_date_string();
     // Keep logging to base_path (e.g., daily.log) - FileSink constructor already opened it
 }

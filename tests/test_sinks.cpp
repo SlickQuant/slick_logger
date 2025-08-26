@@ -162,7 +162,10 @@ TEST_F(SinkTest, DailyFileSinkRotation) {
     class TestDailyFileSink : public slick_logger::DailyFileSink {
     public:
         TestDailyFileSink(const std::filesystem::path& base_path, const slick_logger::RotationConfig& config)
-            : DailyFileSink(base_path, config), test_date_("2025-08-25") {}
+            : DailyFileSink(base_path, config), test_date_("2025-08-25")
+        {
+            current_date_ = test_date_;
+        }
         
         // Override to return our controlled test date
         std::string get_date_string() override {
