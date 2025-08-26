@@ -43,3 +43,9 @@ add_subdirectory(tests)
 
 # Add examples (placeholder)
 add_subdirectory(examples)
+
+# Add benchmarks (optional)
+option(BUILD_BENCHMARKS "Build performance benchmarks" ON)
+if(BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
+endif()
