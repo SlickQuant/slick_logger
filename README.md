@@ -211,12 +211,48 @@ Being a header-only library provides several advantages:
 - **No Binary Dependencies**: No need to distribute or manage .lib/.a files
 - **Immediate Usage**: Start logging with just two `#include` statements
 
+## Custom Sinks
+
+Creating custom sinks is straightforward - just inherit from `ISink`:
+
+```cpp
+class JsonSink : public slick_logger::ISink {
+    std::ofstream file_;
+    bool first_entry_ = true;
+    
+public:
+    explicit JsonSink(const std::filesystem::path& filename) : file_(filename) {
+        file_ << "[\n"; // Start JSON array
+    }
+    
+    void write(const slick_logger::LogEntry& entry) override {
+        // Format as JSON - see examples/multi_sink_example.cpp for full implementation
+        const char* level_str = /* convert level to string */;
+        std::string message = entry.formatter();
+        
+        if (!first_entry_) file_ << ",\n";
+        first_entry_ = false;
+        
+        file_ << "  {\n"
+              << "    \"timestamp\": \"" << /* formatted timestamp */ << "\",\n"  
+              << "    \"level\": \"" << level_str << "\",\n"
+              << "    \"message\": \"" << message << "\"\n"
+              << "  }";
+    }
+    
+    void flush() override { file_.flush(); }
+};
+
+// Usage
+Logger::instance().add_sink(std::make_shared<JsonSink>("app.json"));
+```
+
 ## Examples
 
 The repository includes comprehensive examples:
 
 - **`logger_example.exe`**: Basic usage with console + file output
-- **`multi_sink_example.exe`**: Demonstrates all sink types and rotation
+- **`multi_sink_example.exe`**: Demonstrates all sink types, rotation, and custom sinks
 
 ## Building Examples/Tests  
 

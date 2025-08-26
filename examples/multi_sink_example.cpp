@@ -1,6 +1,128 @@
 #include <slick_logger/logger.hpp>
 #include <thread>
 #include <chrono>
+#include <fstream>
+#include <vector>
+#include <algorithm>
+#include <mutex>
+
+// Custom sink example: JSON structured logging
+class JsonSink : public slick_logger::ISink {
+private:
+    std::ofstream file_;
+    bool first_entry_ = true;
+    
+public:
+    explicit JsonSink(const std::filesystem::path& filename) 
+        : file_(filename) {
+        if (!file_) {
+            throw std::runtime_error("Failed to open JSON log file: " + filename.string());
+        }
+        file_ << "[\n"; // Start JSON array
+    }
+    
+    ~JsonSink() {
+        if (file_.is_open()) {
+            file_ << "\n]\n"; // Close JSON array
+        }
+    }
+    
+    void write(const slick_logger::LogEntry& entry) override {
+        // Convert log level to string
+        const char* level_str = "";
+        switch (entry.level) {
+            case slick_logger::LogLevel::TRACE: level_str = "TRACE"; break;
+            case slick_logger::LogLevel::DEBUG: level_str = "DEBUG"; break;
+            case slick_logger::LogLevel::INFO:  level_str = "INFO"; break;
+            case slick_logger::LogLevel::WARN:  level_str = "WARN"; break;
+            case slick_logger::LogLevel::ERR:   level_str = "ERROR"; break;
+            case slick_logger::LogLevel::FATAL: level_str = "FATAL"; break;
+        }
+        
+        // Format timestamp
+        time_t time_val = static_cast<time_t>(entry.timestamp / 1000000000);
+        std::tm tm = *std::localtime(&time_val);
+        char timestamp[32];
+        std::strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%S", &tm);
+        
+        // Get formatted message
+        std::string message = entry.formatter();
+        
+        // Escape JSON strings (basic implementation)
+        std::string escaped_message = message;
+        std::replace(escaped_message.begin(), escaped_message.end(), '"', '\'');
+        std::replace(escaped_message.begin(), escaped_message.end(), '\n', ' ');
+        
+        // Write JSON entry
+        if (!first_entry_) {
+            file_ << ",\n";
+        }
+        first_entry_ = false;
+        
+        file_ << "  {\n"
+              << "    \"timestamp\": \"" << timestamp << "\",\n"
+              << "    \"level\": \"" << level_str << "\",\n"
+              << "    \"message\": \"" << escaped_message << "\",\n"
+              << "    \"thread_id\": \"" << std::this_thread::get_id() << "\"\n"
+              << "  }";
+    }
+    
+    void flush() override {
+        file_.flush();
+    }
+};
+
+// Custom sink example: Memory buffer for testing
+class MemorySink : public slick_logger::ISink {
+private:
+    std::vector<std::string> entries_;
+    mutable std::mutex mutex_;
+    
+public:
+    void write(const slick_logger::LogEntry& entry) override {
+        // Format the log entry
+        time_t time_val = static_cast<time_t>(entry.timestamp / 1000000000);
+        std::tm tm = *std::localtime(&time_val);
+        
+        const char* level_str = "";
+        switch (entry.level) {
+            case slick_logger::LogLevel::TRACE: level_str = "TRACE"; break;
+            case slick_logger::LogLevel::DEBUG: level_str = "DEBUG"; break;
+            case slick_logger::LogLevel::INFO:  level_str = "INFO"; break;
+            case slick_logger::LogLevel::WARN:  level_str = "WARN"; break;
+            case slick_logger::LogLevel::ERR:   level_str = "ERROR"; break;
+            case slick_logger::LogLevel::FATAL: level_str = "FATAL"; break;
+        }
+        
+        char time_str[20];
+        std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm);
+        
+        std::string message = entry.formatter();
+        std::string formatted = std::string(time_str) + " [" + level_str + "] " + message;
+        
+        std::lock_guard<std::mutex> lock(mutex_);
+        entries_.push_back(formatted);
+    }
+    
+    void flush() override {
+        // Nothing to flush for memory sink
+    }
+    
+    std::vector<std::string> get_entries() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return entries_;
+    }
+    
+    size_t size() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return entries_.size();
+    }
+    
+    void clear() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        entries_.clear();
+    }
+};
 
 int main() {
     using namespace slick_logger;
@@ -65,8 +187,46 @@ int main() {
     LOG_INFO("Daily log entry - filename includes today's date");
     Logger::instance().shutdown();
     
-    // Example 6: Complex multi-sink configuration
-    std::cout << "\n=== Example 6: Complex Multi-Sink Setup ===\n";
+    // Example 6: Custom Sinks
+    std::cout << "\n=== Example 6: Custom Sinks ===\n";
+    Logger::instance().clear_sinks();
+    
+    // Create custom sinks
+    auto json_sink = std::make_shared<JsonSink>("structured.json");
+    auto memory_sink = std::make_shared<MemorySink>();
+    
+    Logger::instance().add_sink(json_sink);
+    Logger::instance().add_sink(memory_sink);
+    Logger::instance().add_console_sink(false, false); // Also to console for visibility
+    Logger::instance().init(1024);
+    
+    // Generate some log entries
+    LOG_INFO("Starting custom sink demonstration");
+    LOG_WARN("Custom sinks can format data however you need");
+    LOG_ERROR("JSON sink creates structured logs");
+    LOG_DEBUG("Memory sink stores entries in RAM for testing");
+    
+    // Multi-threaded logging to test thread safety
+    std::thread custom_thread([]() {
+        for (int i = 0; i < 5; ++i) {
+            LOG_INFO("Custom thread message #{}", i);
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+    });
+    custom_thread.join();
+    
+    Logger::instance().shutdown();
+    
+    // Display memory sink contents
+    std::cout << "\nMemory sink captured " << memory_sink->size() << " entries:\n";
+    for (const auto& entry : memory_sink->get_entries()) {
+        std::cout << "  " << entry << "\n";
+    }
+    
+    std::cout << "\nJSON structured logs written to 'structured.json'\n";
+    
+    // Example 7: Complex multi-sink configuration
+    std::cout << "\n=== Example 7: Complex Multi-Sink Setup ===\n";
     
     LogConfig complex_config;
     complex_config.sinks.push_back(std::make_shared<ConsoleSink>(true, true));
@@ -117,6 +277,7 @@ int main() {
     std::cout << "- multi_sink.log\n";
     std::cout << "- rotating.log (and rotating_1.log, rotating_2.log if rotation occurred)\n";
     std::cout << "- daily_YYYY-MM-DD.log\n";
+    std::cout << "- structured.json (custom JSON sink)\n";
     std::cout << "- application.log\n";
     std::cout << "- errors.log\n";
     
