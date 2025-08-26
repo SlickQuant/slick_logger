@@ -5,7 +5,7 @@ project(slick_logger VERSION 0.1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-configure_file(src/logger.hpp.in ${CMAKE_SOURCE_DIR}/include/slick_logger/version.hpp)
+configure_file(src/version.hpp.in ${CMAKE_SOURCE_DIR}/include/slick_logger/version.hpp)
 
 # Download slick_queue header
 set(slick_queue_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/slick_queue")

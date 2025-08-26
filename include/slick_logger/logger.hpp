@@ -35,24 +35,17 @@
 #include <ctime>
 #include <format>
 #include <utility>
+#include <vector>
 #include <slick_queue.h>
 #include "version.hpp"
+#include "sinks.hpp"
 
 namespace slick_logger {
 
-enum class LogLevel : uint8_t {
-    TRACE = 0,
-    DEBUG = 1,
-    INFO = 2,
-    WARN = 3,
-    ERR = 4,
-    FATAL = 5,
-};
-
-struct LogEntry {
-    LogLevel level;
-    std::function<std::string()> formatter; // Lambda that returns formatted message
-    uint64_t timestamp; // nanoseconds since epoch
+struct LogConfig {
+    std::vector<std::shared_ptr<ISink>> sinks;
+    LogLevel min_level = LogLevel::TRACE;
+    size_t queue_size = 65536;
 };
 
 class Logger {
@@ -60,6 +53,16 @@ public:
     static Logger& instance();
 
     void init(const std::filesystem::path& log_file, size_t queue_size = 65536);
+    void init(const LogConfig& config);
+    void init(size_t queue_size = 65536);
+    
+    void add_sink(std::shared_ptr<ISink> sink);
+    void clear_sinks();
+    
+    void add_console_sink(bool use_colors = true, bool use_stderr_for_errors = true);
+    void add_file_sink(const std::filesystem::path& path, const RotationConfig& config = {});
+    void add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config);
+    void add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config = {});
 
     void set_log_level(LogLevel level) {
         log_level_.store(level, std::memory_order_release);
@@ -69,6 +72,7 @@ public:
     void log(LogLevel level, const std::string& format, Args&&... args);
 
     void shutdown();
+    void reset(); // For testing - clears everything and allows reinitialization
 
 private:
     Logger() = default;
@@ -78,9 +82,10 @@ private:
     Logger& operator=(const Logger&) = delete;
 
     void writer_thread_func();
-    void write_log_entry(std::ofstream& stream, const LogEntry* entry_ptr, uint32_t count);
+    void write_log_entry(const LogEntry* entry_ptr, uint32_t count);
 
     slick::SlickQueue<LogEntry>* queue_;
+    std::vector<std::shared_ptr<ISink>> sinks_;
     std::filesystem::path log_file_;
     std::thread writer_thread_;
     std::atomic<bool> running_{false};
@@ -96,6 +101,10 @@ inline Logger& Logger::instance() {
 }
 
 inline void Logger::init(const std::filesystem::path& log_file, size_t queue_size) {
+    // Backwards compatibility - create file sink for the specified file
+    clear_sinks();
+    add_sink(std::make_shared<FileSink>(log_file));
+    
     // Ensure queue_size is power of 2
     if (queue_size & (queue_size - 1)) {
         // Round up to next power of 2
@@ -121,6 +130,94 @@ inline void Logger::init(const std::filesystem::path& log_file, size_t queue_siz
     
     // Give a small delay to ensure writer thread is started
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
+}
+
+inline void Logger::init(const LogConfig& config) {
+    clear_sinks();
+    
+    for (auto& sink : config.sinks) {
+        add_sink(sink);
+    }
+    
+    set_log_level(config.min_level);
+    
+    // Ensure queue_size is power of 2
+    size_t queue_size = config.queue_size;
+    if (queue_size & (queue_size - 1)) {
+        // Round up to next power of 2
+        size_t temp = queue_size;
+        temp--;
+        temp |= temp >> 1;
+        temp |= temp >> 2;
+        temp |= temp >> 4;
+        temp |= temp >> 8;
+        temp |= temp >> 16;
+        temp |= temp >> 32;
+        queue_size = temp + 1;
+    }
+
+    queue_ = new slick::SlickQueue<LogEntry>(static_cast<uint32_t>(queue_size));
+    running_ = true;
+    
+    // Initialize read_index_ before starting the thread
+    read_index_ = queue_->initial_reading_index();
+    
+    writer_thread_ = std::thread([this]() { writer_thread_func(); });
+    
+    // Give a small delay to ensure writer thread is started
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+}
+
+inline void Logger::add_sink(std::shared_ptr<ISink> sink) {
+    sinks_.push_back(sink);
+}
+
+inline void Logger::clear_sinks() {
+    sinks_.clear();
+}
+
+inline void Logger::init(size_t queue_size) {
+    // Initialize logger with empty sinks - sinks should be added before calling this
+    // Ensure queue_size is power of 2
+    if (queue_size & (queue_size - 1)) {
+        // Round up to next power of 2
+        size_t temp = queue_size;
+        temp--;
+        temp |= temp >> 1;
+        temp |= temp >> 2;
+        temp |= temp >> 4;
+        temp |= temp >> 8;
+        temp |= temp >> 16;
+        temp |= temp >> 32;
+        queue_size = temp + 1;
+    }
+
+    queue_ = new slick::SlickQueue<LogEntry>(static_cast<uint32_t>(queue_size));
+    running_ = true;
+    
+    // Initialize read_index_ before starting the thread
+    read_index_ = queue_->initial_reading_index();
+    
+    writer_thread_ = std::thread([this]() { writer_thread_func(); });
+    
+    // Give a small delay to ensure writer thread is started
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+}
+
+inline void Logger::add_console_sink(bool use_colors, bool use_stderr_for_errors) {
+    add_sink(std::make_shared<ConsoleSink>(use_colors, use_stderr_for_errors));
+}
+
+inline void Logger::add_file_sink(const std::filesystem::path& path, const RotationConfig& config) {
+    add_sink(std::make_shared<FileSink>(path));
+}
+
+inline void Logger::add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config) {
+    add_sink(std::make_shared<RotatingFileSink>(path, config));
+}
+
+inline void Logger::add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config) {
+    add_sink(std::make_shared<DailyFileSink>(path, config));
 }
 
 template<typename... Args>
@@ -154,6 +251,10 @@ inline void Logger::shutdown() {
     if (writer_thread_.joinable()) {
         writer_thread_.join();
     }
+    
+    // Clear sinks to release file handles and other resources
+    sinks_.clear();
+    
     delete queue_;
     queue_ = nullptr;
 }
@@ -162,17 +263,19 @@ inline Logger::~Logger() {
     shutdown();
 }
 
-inline void Logger::writer_thread_func() {
-    std::ofstream log_stream(log_file_, std::ios::app);
-    if (!log_stream) {
-        std::cerr << "Failed to open log file: " << log_file_ << std::endl;
-        return;
-    }
+inline void Logger::reset() {
+    shutdown();
+    // Reset all state for fresh initialization
+    log_file_.clear();
+    read_index_ = 0;
+    log_level_.store(LogLevel::TRACE);
+}
 
+inline void Logger::writer_thread_func() {
     while (running_) {
         auto [entry_ptr, count] = queue_->read(read_index_);
         if (entry_ptr) {
-            write_log_entry(log_stream, entry_ptr, count);
+            write_log_entry(entry_ptr, count);
         } else {
             std::this_thread::sleep_for(std::chrono::milliseconds(1)); // Small delay if no data
         }
@@ -184,33 +287,28 @@ inline void Logger::writer_thread_func() {
         if (!entry_ptr || count == 0) {
             break;
         }
-        write_log_entry(log_stream, entry_ptr, count);
+        write_log_entry(entry_ptr, count);
     }
 }
 
-inline void Logger::write_log_entry(std::ofstream& log_stream, const LogEntry* entry_ptr, uint32_t count) {
+inline void Logger::write_log_entry(const LogEntry* entry_ptr, uint32_t count) {
     for (uint32_t i = 0; i < count; ++i) {
         const LogEntry& entry = entry_ptr[i];
-        time_t time_val = static_cast<time_t>(entry.timestamp / 1000000000);
-        std::tm tm = *std::localtime(&time_val);
-
-        std::string level_str;
-        switch (entry.level) {
-            case LogLevel::TRACE: level_str = "TRACE"; break;
-            case LogLevel::DEBUG: level_str = "DEBUG"; break;
-            case LogLevel::INFO: level_str = "INFO"; break;
-            case LogLevel::WARN: level_str = "WARN"; break;
-            case LogLevel::ERR: level_str = "ERROR"; break;
-            case LogLevel::FATAL: level_str = "FATAL"; break;
+        
+        // Write to all configured sinks
+        for (auto& sink : sinks_) {
+            if (sink) {
+                sink->write(entry);
+            }
         }
-
-        char time_str[20];
-        std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm);
-
-        std::string message = entry.formatter();
-        log_stream << time_str << " [" << level_str << "] " << message << std::endl;
     }
-    log_stream.flush();
+    
+    // Flush all sinks
+    for (auto& sink : sinks_) {
+        if (sink) {
+            sink->flush();
+        }
+    }
 }
 
 // Macros for easy logging

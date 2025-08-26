@@ -3,8 +3,11 @@
 #include <chrono>
 
 int main() {
-    // Initialize the logger
+    // Initialize the logger (traditional way - backwards compatible)
     slick_logger::Logger::instance().init("example.log", 1024);
+    
+    // Alternative: Add console sink for dual output (must be after init)
+    slick_logger::Logger::instance().add_console_sink(true, true);
 
     // Log some messages with formatting
     LOG_INFO("Logger initialized");
@@ -37,6 +40,7 @@ int main() {
     t2.join();
 
     LOG_INFO("Logging complete - all messages were formatted in background thread");
+    LOG_INFO("Messages appear both in example.log and on console with colors!");
 
     // Shutdown the logger
     slick_logger::Logger::instance().shutdown();
