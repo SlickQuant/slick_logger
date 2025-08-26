@@ -24,7 +24,7 @@ protected:
         std::vector<std::string> files = {
             "console_test.log", "multi_sink_test.log", "rotating_test.log",
             "rotating_test_1.log", "rotating_test_2.log", "rotating_test_3.log",
-            "daily_test.log"
+            "daily_test.log", "daily_rotation_test.log", "daily_rotation_test_2025-08-25.log"
         };
         
         for (const auto& file : files) {
@@ -147,16 +147,110 @@ TEST_F(SinkTest, DailyFileSinkTest) {
     
     slick_logger::Logger::instance().reset();
     
-    // Should create a file with today's date
-    auto now = std::chrono::system_clock::now();
-    time_t time_val = std::chrono::system_clock::to_time_t(now);
-    std::tm tm = *std::localtime(&time_val);
+    // Should log to the base filename (daily_test.log), not a dated file
+    EXPECT_TRUE(std::filesystem::exists("daily_test.log"));
     
-    char date_str[11];
-    std::strftime(date_str, sizeof(date_str), "%Y-%m-%d", &tm);
+    // Check that the log message is in the base file
+    std::ifstream log_file("daily_test.log");
+    std::string line;
+    std::getline(log_file, line);
+    EXPECT_TRUE(line.find("Daily sink test message") != std::string::npos);
+}
+
+TEST_F(SinkTest, DailyFileSinkRotation) {
+    // Create a testable DailyFileSink that allows us to control the date
+    class TestDailyFileSink : public slick_logger::DailyFileSink {
+    public:
+        TestDailyFileSink(const std::filesystem::path& base_path, const slick_logger::RotationConfig& config)
+            : DailyFileSink(base_path, config), test_date_("2025-08-25") {}
+        
+        // Override to return our controlled test date
+        std::string get_date_string() override {
+            return test_date_;
+        }
+        
+        // Method to change the date and trigger rotation check
+        void change_date_and_check(const std::string& new_date) {
+            test_date_ = new_date;
+            check_rotation(); // This should trigger rotation when date changes
+        }
+        
+    private:
+        std::string test_date_;
+    };
     
-    std::string expected_filename = std::string("daily_test_") + date_str + ".log";
-    EXPECT_TRUE(std::filesystem::exists(expected_filename));
+    slick_logger::RotationConfig daily_config;
+    
+    slick_logger::Logger::instance().clear_sinks();
+    
+    // Create our test sink with initial date "2025-08-25"
+    auto test_sink = std::make_shared<TestDailyFileSink>("daily_rotation_test.log", daily_config);
+    slick_logger::Logger::instance().add_sink(test_sink);
+    slick_logger::Logger::instance().init(1024);
+    
+    // Log some messages on "day 1" (2025-08-25)
+    LOG_INFO("Message from day 1");
+    LOG_WARN("Warning from day 1");
+    
+    slick_logger::Logger::instance().reset();
+    
+    // Verify base file has the day 1 content
+    ASSERT_TRUE(std::filesystem::exists("daily_rotation_test.log"));
+    std::ifstream base_file("daily_rotation_test.log");
+    std::string day1_content((std::istreambuf_iterator<char>(base_file)),
+                            std::istreambuf_iterator<char>());
+    base_file.close();
+    
+    EXPECT_TRUE(day1_content.find("Message from day 1") != std::string::npos);
+    EXPECT_TRUE(day1_content.find("Warning from day 1") != std::string::npos);
+    
+    // At this point, no dated file should exist yet
+    EXPECT_FALSE(std::filesystem::exists("daily_rotation_test_2025-08-25.log"));
+    
+    // Now simulate the next day by changing the date and triggering rotation check
+    test_sink->change_date_and_check("2025-08-26");
+    
+    // After rotation check, the dated file should be created with day 1's content
+    EXPECT_TRUE(std::filesystem::exists("daily_rotation_test_2025-08-25.log"));
+    
+    // Check that the dated file contains day 1's content
+    std::ifstream dated_file("daily_rotation_test_2025-08-25.log");
+    std::string dated_content((std::istreambuf_iterator<char>(dated_file)),
+                              std::istreambuf_iterator<char>());
+    dated_file.close();
+    
+    EXPECT_TRUE(dated_content.find("Message from day 1") != std::string::npos);
+    EXPECT_TRUE(dated_content.find("Warning from day 1") != std::string::npos);
+    
+    // The base file should now be empty or ready for new content
+    std::ifstream new_base_file("daily_rotation_test.log");
+    std::string new_base_content((std::istreambuf_iterator<char>(new_base_file)),
+                                std::istreambuf_iterator<char>());
+    new_base_file.close();
+    
+    // Base file should be empty after rotation
+    EXPECT_TRUE(new_base_content.empty() || new_base_content.find_first_not_of(" \t\r\n") == std::string::npos);
+    
+    // Re-initialize logger to continue logging to the rotated base file
+    slick_logger::Logger::instance().clear_sinks();
+    slick_logger::Logger::instance().add_sink(test_sink);
+    slick_logger::Logger::instance().init(1024);
+    
+    // Log new messages on "day 2" - these should go to the fresh base file
+    LOG_INFO("Message from day 2");
+    
+    slick_logger::Logger::instance().reset();
+    
+    // Verify the base file now contains day 2's content
+    std::ifstream final_base_file("daily_rotation_test.log");
+    std::string final_base_content((std::istreambuf_iterator<char>(final_base_file)),
+                                   std::istreambuf_iterator<char>());
+    final_base_file.close();
+    
+    EXPECT_TRUE(final_base_content.find("Message from day 2") != std::string::npos);
+    
+    // Ensure day 1 messages are NOT in the current base file
+    EXPECT_FALSE(final_base_content.find("Message from day 1") != std::string::npos);
 }
 
 TEST_F(SinkTest, BackwardsCompatibility) {

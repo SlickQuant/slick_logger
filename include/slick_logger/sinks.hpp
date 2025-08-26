@@ -113,10 +113,13 @@ public:
     
     void write(const LogEntry& entry) override;
 
-private:
+protected:
     void check_rotation();
+    virtual std::string get_date_string();
+
+private:
     std::filesystem::path get_daily_filename();
-    std::string get_date_string();
+    std::filesystem::path get_dated_filename(const std::string& date);
     
     RotationConfig config_;
     std::filesystem::path base_path_;
@@ -283,14 +286,7 @@ inline std::filesystem::path RotatingFileSink::get_rotated_filename(size_t index
 inline DailyFileSink::DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config)
     : FileSink(base_path), config_(config), base_path_(base_path) {
     current_date_ = get_date_string();
-    
-    // Close the base file and reopen with the daily filename
-    file_stream_.close();
-    file_path_ = get_daily_filename();
-    file_stream_.open(file_path_, std::ios::app);
-    if (!file_stream_) {
-        throw std::runtime_error("Failed to open daily log file: " + file_path_.string());
-    }
+    // Keep logging to base_path (e.g., daily.log) - FileSink constructor already opened it
 }
 
 inline void DailyFileSink::write(const LogEntry& entry) {
@@ -301,16 +297,40 @@ inline void DailyFileSink::write(const LogEntry& entry) {
 inline void DailyFileSink::check_rotation() {
     std::string today = get_date_string();
     if (today != current_date_) {
+        // Close current file
         file_stream_.close();
-        file_path_ = get_daily_filename();
-        file_stream_.open(file_path_, std::ios::app);
+        
+        // Rename current base file to dated filename (e.g., daily.log -> daily_2025-08-24.log)
+        std::filesystem::path old_dated_file = get_dated_filename(current_date_);
+        std::error_code ec;
+        if (std::filesystem::exists(base_path_)) {
+            std::filesystem::rename(base_path_, old_dated_file, ec);
+            if (ec) {
+                // If rename fails, try copy and remove
+                std::filesystem::copy_file(base_path_, old_dated_file, ec);
+                if (!ec) {
+                    std::filesystem::remove(base_path_, ec);
+                }
+            }
+        }
+        
+        // Reopen base file for new day's logs
+        file_stream_.open(base_path_, std::ios::out | std::ios::trunc); // Start fresh for new day
+        if (!file_stream_) {
+            throw std::runtime_error("Failed to reopen daily log file: " + base_path_.string());
+        }
+        
         current_date_ = today;
     }
 }
 
 inline std::filesystem::path DailyFileSink::get_daily_filename() {
     std::string date_str = get_date_string();
-    std::string filename = base_path_.stem().string() + "_" + date_str + base_path_.extension().string();
+    return get_dated_filename(date_str);
+}
+
+inline std::filesystem::path DailyFileSink::get_dated_filename(const std::string& date) {
+    std::string filename = base_path_.stem().string() + "_" + date + base_path_.extension().string();
     return base_path_.parent_path() / filename;
 }
 

@@ -168,9 +168,9 @@ The logger uses a **multi-producer, single-consumer** ring buffer (slick_queue) 
 ```
 [Thread 1] ──┐
 [Thread 2] ──┼──► [Lock-Free Queue] ──► [Writer Thread] ──┬──► ConsoleSink
-[Thread N] ──┘                                           ├──► FileSink  
-                                                         ├──► RotatingFileSink
-                                                         └──► DailyFileSink
+[Thread N] ──┘                                            ├──► FileSink  
+                                                          ├──► RotatingFileSink
+                                                          └──► DailyFileSink
 ```
 
 ### Key Design Principles
