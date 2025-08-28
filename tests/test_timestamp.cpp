@@ -75,7 +75,7 @@ TEST_F(TimestampTest, FileSinkWithDifferentTimestampFormats) {
         FileSink custom_sink("test_custom.log", "%H:%M:%S");
         
         LogEntry entry;
-        entry.level = LogLevel::INFO;
+        entry.level = LogLevel::L_INFO;
         entry.timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
             std::chrono::system_clock::now().time_since_epoch()).count();
         entry.formatter = []() { return "Test message"; };

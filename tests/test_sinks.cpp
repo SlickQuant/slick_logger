@@ -276,7 +276,7 @@ TEST_F(SinkTest, LogConfigTest) {
     slick_logger::LogConfig config;
     config.sinks.push_back(std::make_shared<slick_logger::ConsoleSink>(false, false));
     config.sinks.push_back(std::make_shared<slick_logger::FileSink>("multi_sink_test.log"));
-    config.min_level = slick_logger::LogLevel::WARN;
+    config.min_level = slick_logger::LogLevel::L_WARN;
     config.queue_size = 2048;
     
     // Redirect stdout

@@ -29,16 +29,7 @@ public:
     
     void write(const slick_logger::LogEntry& entry) override {
         // Convert log level to string
-        const char* level_str = "";
-        switch (entry.level) {
-            case slick_logger::LogLevel::TRACE: level_str = "TRACE"; break;
-            case slick_logger::LogLevel::DEBUG: level_str = "DEBUG"; break;
-            case slick_logger::LogLevel::INFO:  level_str = "INFO"; break;
-            case slick_logger::LogLevel::WARN:  level_str = "WARN"; break;
-            case slick_logger::LogLevel::ERR:   level_str = "ERROR"; break;
-            case slick_logger::LogLevel::FATAL: level_str = "FATAL"; break;
-        }
-        
+        const char* level_str = to_string(entry.level);
         // Format timestamp
         time_t time_val = static_cast<time_t>(entry.timestamp / 1000000000);
         std::tm tm = *std::localtime(&time_val);
@@ -84,16 +75,7 @@ public:
         time_t time_val = static_cast<time_t>(entry.timestamp / 1000000000);
         std::tm tm = *std::localtime(&time_val);
         
-        const char* level_str = "";
-        switch (entry.level) {
-            case slick_logger::LogLevel::TRACE: level_str = "TRACE"; break;
-            case slick_logger::LogLevel::DEBUG: level_str = "DEBUG"; break;
-            case slick_logger::LogLevel::INFO:  level_str = "INFO"; break;
-            case slick_logger::LogLevel::WARN:  level_str = "WARN"; break;
-            case slick_logger::LogLevel::ERR:   level_str = "ERROR"; break;
-            case slick_logger::LogLevel::FATAL: level_str = "FATAL"; break;
-        }
-        
+        const char* level_str = to_string(entry.level);
         char time_str[20];
         std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm);
         
@@ -150,7 +132,7 @@ int main() {
     Logger::instance().add_console_sink(true, true);
     Logger::instance().add_file_sink("multi_sink.log");
     Logger::instance().init(1024);
-    Logger::instance().set_log_level(LogLevel::DEBUG);
+    Logger::instance().set_log_level(LogLevel::L_DEBUG);
     
     LOG_DEBUG("This appears on both console and file");
     LOG_INFO("Multi-sink logging is working!");
@@ -237,7 +219,7 @@ int main() {
     error_rotation.max_files = 10;
     complex_config.sinks.push_back(std::make_shared<RotatingFileSink>("errors.log", error_rotation));
     
-    complex_config.min_level = LogLevel::TRACE;
+    complex_config.min_level = LogLevel::L_TRACE;
     complex_config.queue_size = 8192;
     
     Logger::instance().init(complex_config);

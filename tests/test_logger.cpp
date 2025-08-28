@@ -33,7 +33,7 @@ TEST(SlickLoggerTest, LogFilter) {
 
     // Initialize logger
     slick_logger::Logger::instance().init("test.log", 1024);
-    slick_logger::Logger::instance().set_log_level(slick_logger::LogLevel::INFO);
+    slick_logger::Logger::instance().set_log_level(slick_logger::LogLevel::L_INFO);
 
     LOG_INFO("Test message");
     LOG_DEBUG("This debug message should not appear");

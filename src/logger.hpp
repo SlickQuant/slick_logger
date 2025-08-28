@@ -258,7 +258,7 @@ protected:
 
 struct LogConfig {
     std::vector<std::shared_ptr<ISink>> sinks;
-    LogLevel min_level = LogLevel::TRACE;
+    LogLevel min_level = LogLevel::L_TRACE;
     size_t queue_size = 65536;
 };
 
@@ -315,7 +315,7 @@ private:
     std::thread writer_thread_;
     std::atomic<bool> running_{false};
     uint64_t read_index_{0};
-    std::atomic<LogLevel> log_level_{LogLevel::TRACE};
+    std::atomic<LogLevel> log_level_{LogLevel::L_TRACE};
 };
 
 // Implementation (header-only library)
@@ -335,7 +335,7 @@ inline ConsoleSink::ConsoleSink(const std::string& custom_timestamp_format, bool
 inline void ConsoleSink::write(const LogEntry& entry) {
     std::string formatted = format_log_entry(entry);
     
-    if (use_stderr_for_errors_ && (entry.level >= LogLevel::WARN)) {
+    if (use_stderr_for_errors_ && (entry.level >= LogLevel::L_WARN)) {
         std::cerr << formatted << std::endl;
     } else {
         std::cout << formatted << std::endl;
@@ -747,7 +747,7 @@ inline void Logger::reset() {
     // Reset all state for fresh initialization
     log_file_.clear();
     read_index_ = 0;
-    log_level_.store(LogLevel::TRACE);
+    log_level_.store(LogLevel::L_TRACE);
 }
 
 inline void Logger::writer_thread_func() {
