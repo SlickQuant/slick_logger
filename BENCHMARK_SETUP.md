@@ -8,7 +8,7 @@ This guide helps you build and run the comprehensive benchmark suite to compare 
 
 ```bash
 # Clone the repository  
-git clone <your-repo-url>
+git clone https://github.com/SlickTech/slick_logger.git
 cd slick_logger
 
 # Create build directory

@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <slick_logger/sinks.hpp>
+#include <slick_logger/logger.hpp>
 #include <fstream>
 #include <regex>
 

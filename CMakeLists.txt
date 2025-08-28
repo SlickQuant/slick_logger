@@ -5,27 +5,25 @@ project(slick_logger VERSION 0.1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-configure_file(src/version.hpp.in ${CMAKE_SOURCE_DIR}/include/slick_logger/version.hpp)
+include(FetchContent)
 
-# Download slick_queue header
-set(slick_queue_SOURCE_DIR "${CMAKE_BINARY_DIR}/_deps/slick_queue")
-file(DOWNLOAD
-    https://raw.githubusercontent.com/SlickTech/slick_queue/main/include/slick_queue.h
-    ${slick_queue_SOURCE_DIR}/include/slick_queue.h
-    STATUS download_status
+# Disable tests for slick_queue
+set(BUILD_SLICK_QUEUE_TESTS OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+    slick_queue
+    GIT_REPOSITORY https://github.com/SlickTech/slick_queue.git
+    GIT_TAG main
 )
-list(GET download_status 0 download_result)
-if(NOT download_result EQUAL 0)
-    message(FATAL_ERROR "Failed to download slick_queue.h")
-endif()
+FetchContent_MakeAvailable(slick_queue)
 
-# Include directories
-include_directories(${slick_queue_SOURCE_DIR}/include)
-include_directories(include)
+configure_file(src/logger.hpp ${CMAKE_SOURCE_DIR}/include/slick_logger/logger.hpp)
 
 # Add header-only library
 add_library(slick_logger INTERFACE)
-target_include_directories(slick_logger INTERFACE include ${slick_queue_SOURCE_DIR}/include)
+target_include_directories(slick_logger INTERFACE ${slick_queue_SOURCE_DIR}/include
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
 
 if (MSVC)
     set(CMAKE_CXX_FLAGS_RELEASE "-O2")
@@ -45,7 +43,7 @@ add_subdirectory(tests)
 add_subdirectory(examples)
 
 # Add benchmarks (optional)
-option(BUILD_BENCHMARKS "Build performance benchmarks" OFF)
-if(BUILD_BENCHMARKS)
+option(BUILD_SLICK_LOGGER_BENCHMARKS "Build performance benchmarks" OFF)
+if(BUILD_SLICK_LOGGER_BENCHMARKS)
     add_subdirectory(benchmarks)
 endif()

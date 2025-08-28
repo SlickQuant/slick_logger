@@ -22,7 +22,84 @@ A high-performance, cross-platform **header-only** logging library for C++20 usi
 
 ## Installation
 
-Just copy the `include/` directory to your project and you're ready to go!
+### Option 1: Direct Copy
+For manual installation, you need both slick_logger and its dependency:
+
+1. Copy the `include/slick_logger/` directory to your project
+2. Download `slick_queue.h` from https://raw.githubusercontent.com/SlickTech/slick_queue/main/include/slick_queue.h
+3. Place `slick_queue.h` in your include path or alongside the slick_logger headers
+
+Your project structure should look like:
+```
+your_project/
+├── include/
+│   ├── slick_logger/
+│   │   └── logger.hpp
+│   └── slick_queue.h
+└── src/
+    └── main.cpp
+```
+
+### Option 2: CMake Integration (Recommended)
+
+CMake automatically handles the slick_queue dependency for you.
+
+#### Using FetchContent (Recommended)
+```cmake
+cmake_minimum_required(VERSION 3.20)
+project(your_project)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+include(FetchContent)
+
+# Disable examples, tests, and benchmarks for slick_logger
+set(BUILD_SLICK_LOGGER_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(BUILD_SLICK_LOGGER_TESTING OFF CACHE BOOL "" FORCE)
+set(BUILD_SLICK_LOGGER_BENCHMARKS OFF CACHE BOOL "" FORCE)
+
+FetchContent_Declare(
+    slick_logger
+    GIT_REPOSITORY https://github.com/SlickTech/slick_logger.git
+    GIT_TAG main
+)
+
+FetchContent_MakeAvailable(slick_logger)
+
+add_executable(your_app main.cpp)
+target_link_libraries(your_app slick_logger::slick_logger)
+```
+
+#### Using find_package
+If you've installed slick_logger system-wide:
+
+```cmake
+cmake_minimum_required(VERSION 3.20)
+project(your_project)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+find_package(slick_logger REQUIRED)
+
+add_executable(your_app main.cpp)
+target_link_libraries(your_app slick_logger::slick_logger)
+```
+
+#### Manual Integration
+```cmake
+cmake_minimum_required(VERSION 3.20)
+project(your_project)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Add slick_logger include directory
+include_directories(path/to/slick_logger/include)
+
+add_executable(your_app main.cpp)
+```
 
 ## Usage
 
