@@ -44,8 +44,6 @@
 #include <utility>
 #include <vector>
 #include <slick_queue.h>
-// #include "version.hpp"
-// #include "sinks.hpp"
 
 #define SLICK_LOGGER_VERSION_MAJOR @slick_logger_VERSION_MAJOR@
 #define SLICK_LOGGER_VERSION_MINOR @slick_logger_VERSION_MINOR@
