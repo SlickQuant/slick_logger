@@ -54,24 +54,24 @@
 namespace slick_logger {
 
 enum class LogLevel : uint8_t {
-    TRACE = 0,
-    DEBUG = 1,
-    INFO = 2,
-    WARN = 3,
-    ERR = 4,
-    FATAL = 5,
-    OFF = 6,
+    L_TRACE = 0,
+    L_DEBUG = 1,
+    L_INFO = 2,
+    L_WARN = 3,
+    L_ERROR = 4,
+    L_FATAL = 5,
+    L_OFF = 6,
 };
 
 inline constexpr const char* to_string(LogLevel level) noexcept {
     switch (level) {
-        case LogLevel::TRACE: return "TRACE";
-        case LogLevel::DEBUG: return "DEBUG";
-        case LogLevel::INFO:  return "INFO";
-        case LogLevel::WARN:  return "WARN";
-        case LogLevel::ERR:   return "ERROR";
-        case LogLevel::FATAL: return "FATAL";
-        case LogLevel::OFF:   return "OFF";
+        case LogLevel::L_TRACE: return "TRACE";
+        case LogLevel::L_DEBUG: return "DEBUG";
+        case LogLevel::L_INFO:  return "INFO";
+        case LogLevel::L_WARN:  return "WARN";
+        case LogLevel::L_ERROR: return "ERROR";
+        case LogLevel::L_FATAL: return "FATAL";
+        case LogLevel::L_OFF:   return "OFF";
         default:              return "UNKNOWN";
     }
 }
@@ -362,12 +362,12 @@ inline std::string ConsoleSink::format_log_entry(const LogEntry& entry) {
 
 inline std::string ConsoleSink::get_color_code(LogLevel level) {
     switch (level) {
-        case LogLevel::TRACE: return "\033[90m";   // Dark gray
-        case LogLevel::DEBUG: return "\033[36m";   // Cyan
-        case LogLevel::INFO: return "\033[32m";    // Green
-        case LogLevel::WARN: return "\033[33m";    // Yellow
-        case LogLevel::ERR: return "\033[31m";     // Red
-        case LogLevel::FATAL: return "\033[91m";   // Bright red
+        case LogLevel::L_TRACE: return "\033[90m";   // Dark gray
+        case LogLevel::L_DEBUG: return "\033[36m";   // Cyan
+        case LogLevel::L_INFO: return "\033[32m";    // Green
+        case LogLevel::L_WARN: return "\033[33m";    // Yellow
+        case LogLevel::L_ERROR: return "\033[31m";     // Red
+        case LogLevel::L_FATAL: return "\033[91m";   // Bright red
         default: return "";
     }
 }
@@ -793,9 +793,9 @@ inline void Logger::write_log_entry(const LogEntry* entry_ptr, uint32_t count) {
 } // namespace slick_logger
 
 // Macros for easy logging
-#define LOG_TRACE(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::TRACE, __VA_ARGS__)
-#define LOG_DEBUG(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::DEBUG, __VA_ARGS__)
-#define LOG_INFO(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::INFO, __VA_ARGS__)
-#define LOG_WARN(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::WARN, __VA_ARGS__)
-#define LOG_ERROR(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::ERR, __VA_ARGS__)
-#define LOG_FATAL(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::FATAL, __VA_ARGS__)
+#define LOG_TRACE(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::L_TRACE, __VA_ARGS__)
+#define LOG_DEBUG(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::L_DEBUG, __VA_ARGS__)
+#define LOG_INFO(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::L_INFO, __VA_ARGS__)
+#define LOG_WARN(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::L_WARN, __VA_ARGS__)
+#define LOG_ERROR(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::L_ERROR, __VA_ARGS__)
+#define LOG_FATAL(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::L_FATAL, __VA_ARGS__)
