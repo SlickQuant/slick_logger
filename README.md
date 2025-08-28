@@ -68,7 +68,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(slick_logger)
 
 add_executable(your_app main.cpp)
-target_link_libraries(your_app slick_logger::slick_logger)
+target_link_libraries(your_app slick_logger)
 ```
 
 #### Using find_package
@@ -84,7 +84,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(slick_logger REQUIRED)
 
 add_executable(your_app main.cpp)
-target_link_libraries(your_app slick_logger::slick_logger)
+target_link_libraries(your_app slick_logger)
 ```
 
 #### Manual Integration

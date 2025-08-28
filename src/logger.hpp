@@ -60,7 +60,21 @@ enum class LogLevel : uint8_t {
     WARN = 3,
     ERR = 4,
     FATAL = 5,
+    OFF = 6,
 };
+
+inline constexpr const char* to_string(LogLevel level) noexcept {
+    switch (level) {
+        case LogLevel::TRACE: return "TRACE";
+        case LogLevel::DEBUG: return "DEBUG";
+        case LogLevel::INFO:  return "INFO";
+        case LogLevel::WARN:  return "WARN";
+        case LogLevel::ERR:   return "ERROR";
+        case LogLevel::FATAL: return "FATAL";
+        case LogLevel::OFF:   return "OFF";
+        default:              return "UNKNOWN";
+    }
+}
 
 class TimestampFormatter {
 public:
@@ -334,16 +348,7 @@ inline void ConsoleSink::flush() {
 }
 
 inline std::string ConsoleSink::format_log_entry(const LogEntry& entry) {
-    std::string level_str;
-    switch (entry.level) {
-        case LogLevel::TRACE: level_str = "TRACE"; break;
-        case LogLevel::DEBUG: level_str = "DEBUG"; break;
-        case LogLevel::INFO: level_str = "INFO"; break;
-        case LogLevel::WARN: level_str = "WARN"; break;
-        case LogLevel::ERR: level_str = "ERROR"; break;
-        case LogLevel::FATAL: level_str = "FATAL"; break;
-    }
-
+    std::string level_str = to_string(entry.level);
     std::string timestamp = timestamp_formatter_.format_timestamp(entry.timestamp);
     std::string message = entry.formatter();
     std::string result = timestamp + " [" + level_str + "] " + message;
@@ -401,16 +406,7 @@ inline void FileSink::flush() {
 }
 
 inline std::string FileSink::format_log_entry(const LogEntry& entry) {
-    std::string level_str;
-    switch (entry.level) {
-        case LogLevel::TRACE: level_str = "TRACE"; break;
-        case LogLevel::DEBUG: level_str = "DEBUG"; break;
-        case LogLevel::INFO: level_str = "INFO"; break;
-        case LogLevel::WARN: level_str = "WARN"; break;
-        case LogLevel::ERR: level_str = "ERROR"; break;
-        case LogLevel::FATAL: level_str = "FATAL"; break;
-    }
-
+    std::string level_str = to_string(entry.level);
     std::string timestamp = timestamp_formatter_.format_timestamp(entry.timestamp);
     std::string message = entry.formatter();
     return timestamp + " [" + level_str + "] " + message;
@@ -794,6 +790,8 @@ inline void Logger::write_log_entry(const LogEntry* entry_ptr, uint32_t count) {
     }
 }
 
+} // namespace slick_logger
+
 // Macros for easy logging
 #define LOG_TRACE(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::TRACE, __VA_ARGS__)
 #define LOG_DEBUG(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::DEBUG, __VA_ARGS__)
@@ -801,5 +799,3 @@ inline void Logger::write_log_entry(const LogEntry* entry_ptr, uint32_t count) {
 #define LOG_WARN(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::WARN, __VA_ARGS__)
 #define LOG_ERROR(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::ERR, __VA_ARGS__)
 #define LOG_FATAL(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::FATAL, __VA_ARGS__)
-
-} // namespace slick_logger

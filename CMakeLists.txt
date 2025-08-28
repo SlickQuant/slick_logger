@@ -16,14 +16,23 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(slick_queue)
 
-configure_file(src/logger.hpp ${CMAKE_SOURCE_DIR}/include/slick_logger/logger.hpp)
+configure_file(src/logger.hpp ${CMAKE_CURRENT_SOURCE_DIR}/include/slick_logger/logger.hpp)
+
+if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release)
+endif()
+
+if (CMAKE_BUILD_TYPE MATCHES Release)
+    add_definitions(-DNDEBUG)
+endif()
 
 # Add header-only library
 add_library(slick_logger INTERFACE)
-target_include_directories(slick_logger INTERFACE ${slick_queue_SOURCE_DIR}/include
+target_include_directories(slick_logger INTERFACE 
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
+target_link_libraries(slick_logger INTERFACE slick_queue)
 
 if (MSVC)
     set(CMAKE_CXX_FLAGS_RELEASE "-O2")
