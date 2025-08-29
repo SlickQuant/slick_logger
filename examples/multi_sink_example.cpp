@@ -132,7 +132,7 @@ int main() {
     Logger::instance().add_console_sink(true, true);
     Logger::instance().add_file_sink("multi_sink.log");
     Logger::instance().init(1024);
-    Logger::instance().set_log_level(LogLevel::L_DEBUG);
+    Logger::instance().set_level(LogLevel::L_DEBUG);
     
     LOG_DEBUG("This appears on both console and file");
     LOG_INFO("Multi-sink logging is working!");
