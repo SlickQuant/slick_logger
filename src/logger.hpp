@@ -160,7 +160,7 @@ private:
 
 struct LogEntry {
     LogLevel level;
-    std::function<std::string()> formatter; // Lambda that returns formatted message
+    std::function<std::pair<std::string,bool>()> formatter; // Lambda that returns formatted message
     uint64_t timestamp; // nanoseconds since epoch
 };
 
@@ -483,7 +483,10 @@ inline void ConsoleSink::flush() {
 inline std::string ConsoleSink::format_log_entry(const LogEntry& entry) {
     std::string level_str = to_string(entry.level);
     std::string timestamp = timestamp_formatter_.format_timestamp(entry.timestamp);
-    std::string message = entry.formatter();
+    auto [message, good] = entry.formatter();
+    if (!good) [[unlikely]] {
+        level_str = "ERROR";
+    }
     std::string result = timestamp + " [" + level_str + "] " + message;
     
     if (use_colors_) {
@@ -541,7 +544,10 @@ inline void FileSink::flush() {
 inline std::string FileSink::format_log_entry(const LogEntry& entry) {
     std::string level_str = to_string(entry.level);
     std::string timestamp = timestamp_formatter_.format_timestamp(entry.timestamp);
-    std::string message = entry.formatter();
+    auto [message, good] = entry.formatter();
+    if (!good) [[unlikely]] {
+        level_str = "ERROR";
+    }
     return timestamp + " [" + level_str + "] " + message;
 }
 
@@ -843,10 +849,23 @@ inline void Logger::log(LogLevel level, const std::string& format, Args&&... arg
     auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
 
     // Create lambda that captures format and arguments, formats when called
-    auto formatter = [format, args_tuple = std::make_tuple(std::forward<Args>(args)...)]() mutable -> std::string {
-        return std::apply([&format](auto&&... unpacked_args) -> std::string {
-            return std::vformat(format, std::make_format_args(std::forward<decltype(unpacked_args)>(unpacked_args)...));
-        }, args_tuple);
+    auto formatter = [format, args_tuple = std::make_tuple(std::forward<Args>(args)...)]() mutable -> std::pair<std::string, bool> {
+        try {
+            if constexpr (sizeof...(Args) == 0) {
+                // No arguments provided, return format string as-is to avoid format parsing errors
+                return std::make_pair(format, true);
+            } else {
+                return std::make_pair(std::apply([&format](auto&&... unpacked_args) -> std::string {
+                    return std::vformat(format, std::make_format_args(std::forward<decltype(unpacked_args)>(unpacked_args)...));
+                }, args_tuple), true);
+            }
+        } catch (const std::exception& e) {
+            // Return original format string with error info if formatting fails
+            return std::make_pair(format + " [FORMAT_ERROR: " + e.what() + "]", false);
+        } catch (...) {
+            // Handle any other exceptions
+            return std::make_pair(format + " [FORMAT_ERROR: Unknown exception]", false);
+        }
     };
 
     uint64_t index = queue_->reserve();

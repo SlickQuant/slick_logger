@@ -5,7 +5,20 @@
 #include <fstream>
 #include <string>
 
-TEST(SlickLoggerTest, BasicLogging) {
+class SlickLoggerTest : public ::testing::Test {
+protected:
+    void TearDown() override {
+        // Clean up all test log files
+        std::filesystem::remove("test.log");
+        std::filesystem::remove("test_mt.log");
+        std::filesystem::remove("test_json.log");
+        std::filesystem::remove("test_format_error.log");
+        std::filesystem::remove("test_no_args.log");
+        std::filesystem::remove("test_mixed.log");
+    }
+};
+
+TEST_F(SlickLoggerTest, BasicLogging) {
     // Clean up any existing log file
     std::filesystem::remove("test.log");
 
@@ -27,7 +40,7 @@ TEST(SlickLoggerTest, BasicLogging) {
     EXPECT_TRUE(line.find("Test message") != std::string::npos);
 }
 
-TEST(SlickLoggerTest, LogFilter) {
+TEST_F(SlickLoggerTest, LogFilter) {
     // Clean up any existing log file
     std::filesystem::remove("test.log");
 
@@ -60,7 +73,7 @@ TEST(SlickLoggerTest, LogFilter) {
     EXPECT_TRUE(line.find("This is fatal") != std::string::npos);
 }
 
-TEST(SlickLoggerTest, MultiThreadedLogging) {
+TEST_F(SlickLoggerTest, MultiThreadedLogging) {
     std::filesystem::remove("test_mt.log");
 
     slick_logger::Logger::instance().init("test_mt.log", 1024);
@@ -91,6 +104,135 @@ TEST(SlickLoggerTest, MultiThreadedLogging) {
         count++;
     }
     EXPECT_EQ(count, 10); // 5 from each thread
+}
+
+TEST_F(SlickLoggerTest, JSONStringLogging) {
+    std::filesystem::remove("test_json.log");
+    
+    slick_logger::Logger::instance().init("test_json.log", 1024);
+    
+    // Test logging JSON strings with curly braces (no arguments)
+    LOG_INFO("[{\"T\":\"success\",\"msg\":\"connected\"}]");
+    LOG_INFO("{\"user\":\"alice\",\"status\":\"active\",\"count\":42}");
+    LOG_INFO("Complex JSON: {\"data\":{\"nested\":{\"value\":\"test\"}}}");
+    
+    slick_logger::Logger::instance().shutdown();
+    
+    // Verify the JSON strings were logged correctly
+    ASSERT_TRUE(std::filesystem::exists("test_json.log"));
+    
+    std::ifstream log_file("test_json.log");
+    std::string line;
+    
+    std::getline(log_file, line);
+    EXPECT_TRUE(line.find("[{\"T\":\"success\",\"msg\":\"connected\"}]") != std::string::npos);
+    
+    std::getline(log_file, line);
+    EXPECT_TRUE(line.find("{\"user\":\"alice\",\"status\":\"active\",\"count\":42}") != std::string::npos);
+    
+    std::getline(log_file, line);
+    EXPECT_TRUE(line.find("Complex JSON: {\"data\":{\"nested\":{\"value\":\"test\"}}}") != std::string::npos);
+}
+
+TEST_F(SlickLoggerTest, FormatErrorHandling) {
+    std::filesystem::remove("test_format_error.log");
+    
+    slick_logger::Logger::instance().init("test_format_error.log", 1024);
+    
+    // Test various malformed format strings that should trigger exception handling
+    LOG_INFO("Unmatched opening brace: {incomplete");
+    LOG_INFO("Wrong argument count: {} {} {}", 42);  // 3 placeholders, 1 argument
+    LOG_INFO("Invalid format spec: {invalid_spec}");
+    LOG_INFO("Mixed issues: {unclosed and {} with missing args", "partial");
+    
+    // Test valid formats to ensure they still work
+    LOG_INFO("Valid format: {}", "works");
+    LOG_INFO("Multiple valid: {} and {}", "first", "second");
+    
+    slick_logger::Logger::instance().shutdown();
+    
+    // Verify error handling worked and log file exists
+    ASSERT_TRUE(std::filesystem::exists("test_format_error.log"));
+    
+    std::ifstream log_file("test_format_error.log");
+    std::string line;
+    std::string file_contents;
+    while (std::getline(log_file, line)) {
+        file_contents += line + "\n";
+    }
+    
+    // Check that malformed strings are logged with error info
+    EXPECT_TRUE(file_contents.find("Unmatched opening brace: {incomplete") != std::string::npos);
+    EXPECT_TRUE(file_contents.find("[FORMAT_ERROR:") != std::string::npos);
+    EXPECT_TRUE(file_contents.find("Wrong argument count: {} {} {}") != std::string::npos);
+    
+    // Check that valid formats still work correctly
+    EXPECT_TRUE(file_contents.find("Valid format: works") != std::string::npos);
+    EXPECT_TRUE(file_contents.find("Multiple valid: first and second") != std::string::npos);
+}
+
+TEST_F(SlickLoggerTest, NoArgumentsFormatting) {
+    std::filesystem::remove("test_no_args.log");
+    
+    slick_logger::Logger::instance().init("test_no_args.log", 1024);
+    
+    // Test strings with curly braces but no arguments - should be logged as-is
+    LOG_INFO("No args: This {has} {curly} {braces}");
+    LOG_INFO("WebSocket message: {\"type\":\"message\",\"data\":{\"id\":123}}");
+    LOG_INFO("C++ code snippet: if (condition) { return {}; }");
+    
+    // Test empty format string
+    LOG_INFO("");
+    
+    slick_logger::Logger::instance().shutdown();
+    
+    ASSERT_TRUE(std::filesystem::exists("test_no_args.log"));
+    
+    std::ifstream log_file("test_no_args.log");
+    std::string line;
+    std::string file_contents;
+    while (std::getline(log_file, line)) {
+        file_contents += line + "\n";
+    }
+    
+    // Verify strings are logged exactly as provided (no formatting attempted)
+    EXPECT_TRUE(file_contents.find("No args: This {has} {curly} {braces}") != std::string::npos);
+    EXPECT_TRUE(file_contents.find("WebSocket message: {\"type\":\"message\",\"data\":{\"id\":123}}") != std::string::npos);
+    EXPECT_TRUE(file_contents.find("C++ code snippet: if (condition) { return {}; }") != std::string::npos);
+}
+
+TEST_F(SlickLoggerTest, MixedValidAndInvalidFormats) {
+    std::filesystem::remove("test_mixed.log");
+    
+    slick_logger::Logger::instance().init("test_mixed.log", 1024);
+    
+    // Mix of valid formatting, invalid formatting, and no-argument logging
+    LOG_INFO("Valid: User {} has {} points", "Alice", 100);
+    LOG_INFO("Invalid: Too many placeholders {} {} {}", "only_one");  // 3 placeholders, 1 argument
+    LOG_INFO("JSON: {\"status\":\"ok\",\"code\":200}");
+    LOG_INFO("Valid again: Temperature is {:.1f}°C", 23.5);
+    LOG_INFO("Broken: {invalid} format {");
+    
+    slick_logger::Logger::instance().shutdown();
+    
+    ASSERT_TRUE(std::filesystem::exists("test_mixed.log"));
+    
+    std::ifstream log_file("test_mixed.log");
+    std::string file_contents;
+    std::string line;
+    while (std::getline(log_file, line)) {
+        file_contents += line + "\n";
+    }
+    
+    // Check valid formats work
+    EXPECT_TRUE(file_contents.find("Valid: User Alice has 100 points") != std::string::npos);
+    EXPECT_TRUE(file_contents.find("Temperature is 23.5°C") != std::string::npos);
+    
+    // Check JSON is preserved
+    EXPECT_TRUE(file_contents.find("JSON: {\"status\":\"ok\",\"code\":200}") != std::string::npos);
+    
+    // Check error handling for invalid formats
+    EXPECT_TRUE(file_contents.find("[FORMAT_ERROR:") != std::string::npos);
 }
 
 int main(int argc, char **argv) {

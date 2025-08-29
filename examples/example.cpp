@@ -15,6 +15,9 @@ int main() {
     LOG_WARN("Warning: {} items processed", 150);
     LOG_ERROR("Error occurred in {} at line {}", "function_name", 123);
 
+    // Log a JSON-like structured message
+    LOG_INFO("[{\"T\":\"success\",\"msg\":\"connected\"}]");
+
     // Demonstrate variadic arguments
     std::string user = "Alice";
     int age = 30;
