@@ -7,13 +7,6 @@
 #include <thread>
 #include <numeric>
 
-#ifdef _WIN32
-#define NOMINMAX
-#include <windows.h>
-#undef min
-#undef max
-#endif
-
 // Include logging libraries
 #include <slick_logger/logger.hpp>
 #include <spdlog/spdlog.h>

@@ -26,7 +26,7 @@ A high-performance, cross-platform **header-only** logging library for C++20 usi
 For manual installation, you need both slick_logger and its dependency:
 
 1. Copy the `include/slick_logger/` directory to your project
-2. Download `slick_queue.h` from https://raw.githubusercontent.com/SlickTech/slick_queue/main/include/slick_queue.h
+2. Download `slick_queue.h` from https://raw.githubusercontent.com/SlickTech/slick_queue/main/include/slick_queue/slick_queue.h
 3. Place `slick_queue.h` in your include path or alongside the slick_logger headers
 
 Your project structure should look like:
@@ -35,7 +35,8 @@ your_project/
 ├── include/
 │   ├── slick_logger/
 │   │   └── logger.hpp
-│   └── slick_queue.h
+│   └── slick_queue/
+│       └── slick_queue.h
 └── src/
     └── main.cpp
 ```
@@ -96,7 +97,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Add slick_logger include directory
-include_directories(path/to/slick_logger/include)
+include_directories(path/to/slick_logger/include, path/to/slick_queue/include)
 
 add_executable(your_app main.cpp)
 ```
