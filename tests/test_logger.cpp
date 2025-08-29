@@ -15,6 +15,7 @@ protected:
         std::filesystem::remove("test_format_error.log");
         std::filesystem::remove("test_no_args.log");
         std::filesystem::remove("test_mixed.log");
+        std::filesystem::remove("test_char_array.log");
     }
 };
 
@@ -233,6 +234,41 @@ TEST_F(SlickLoggerTest, MixedValidAndInvalidFormats) {
     
     // Check error handling for invalid formats
     EXPECT_TRUE(file_contents.find("[FORMAT_ERROR:") != std::string::npos);
+}
+
+TEST_F(SlickLoggerTest, ConstCharArrayLogging) {
+    std::filesystem::remove("test_char_array.log");
+    
+    slick_logger::Logger::instance().init("test_char_array.log", 1024);
+    
+    {
+        const char* msg = "Const char array message";
+        LOG_INFO("Message: {}", msg);
+    }
+    {
+        std::string msg = "string message";
+        LOG_INFO("Message: {}", msg);
+    }
+    {
+        std::string msg = "Const char array string message";
+        LOG_INFO("Message: {}", msg.c_str());
+    }
+    
+    slick_logger::Logger::instance().shutdown();
+    
+    ASSERT_TRUE(std::filesystem::exists("test_char_array.log"));
+    
+    std::ifstream log_file("test_char_array.log");
+    std::string file_contents;
+    std::string line;
+    while (std::getline(log_file, line)) {
+        file_contents += line + "\n";
+    }
+    
+    // Check valid formats work
+    EXPECT_TRUE(file_contents.find("Const char array message") != std::string::npos);
+    EXPECT_TRUE(file_contents.find("string message") != std::string::npos);
+    EXPECT_TRUE(file_contents.find("Const char array string message") != std::string::npos);
 }
 
 int main(int argc, char **argv) {

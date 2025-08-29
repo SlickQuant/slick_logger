@@ -838,6 +838,25 @@ inline void Logger::add_daily_file_sink(const std::filesystem::path& path, const
     add_sink(std::make_shared<DailyFileSink>(path, config, custom_timestamp_format));
 }
 
+// Helper function to convert arguments to owned types
+template<typename T>
+constexpr auto make_owned_arg(T&& arg) {
+    using DecayedT = std::decay_t<T>;
+    
+    // Convert const char* to std::string to prevent dangling pointers
+    if constexpr (std::is_same_v<DecayedT, const char*> || std::is_same_v<DecayedT, char*>) {
+        return std::string(arg);
+    }
+    // Convert string_view to string for safety
+    else if constexpr (std::is_same_v<DecayedT, std::string_view>) {
+        return std::string(arg);
+    }
+    // For all other types, use perfect forwarding to preserve value category
+    else {
+        return std::forward<T>(arg);
+    }
+}
+
 template<typename... Args>
 inline void Logger::log(LogLevel level, const std::string& format, Args&&... args) {
     if (!running_ || !queue_ || level < log_level_.load(std::memory_order_relaxed))
@@ -849,7 +868,8 @@ inline void Logger::log(LogLevel level, const std::string& format, Args&&... arg
     auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
 
     // Create lambda that captures format and arguments, formats when called
-    auto formatter = [format, args_tuple = std::make_tuple(std::forward<Args>(args)...)]() mutable -> std::pair<std::string, bool> {
+    // Convert all arguments to owned types to prevent dangling pointers
+    auto formatter = [format, args_tuple = std::make_tuple(make_owned_arg(std::forward<Args>(args))...)]() mutable -> std::pair<std::string, bool> {
         try {
             if constexpr (sizeof...(Args) == 0) {
                 // No arguments provided, return format string as-is to avoid format parsing errors
