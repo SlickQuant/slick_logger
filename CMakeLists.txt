@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(slick_logger VERSION 0.1.0.1 LANGUAGES CXX)
+set(BUILD_VERSION 0.1.0.1)
+project(slick_logger VERSION ${BUILD_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -12,7 +13,7 @@ set(BUILD_SLICK_QUEUE_TESTS OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
     slick_queue
     GIT_REPOSITORY https://github.com/SlickTech/slick_queue.git
-    GIT_TAG v1.0.0.1
+    GIT_TAG v1.0.0.2
 )
 FetchContent_MakeAvailable(slick_queue)
 
@@ -59,4 +60,22 @@ add_subdirectory(examples)
 option(BUILD_SLICK_LOGGER_BENCHMARKS "Build performance benchmarks" OFF)
 if(BUILD_SLICK_LOGGER_BENCHMARKS AND CMAKE_BUILD_TYPE MATCHES Release)
     add_subdirectory(benchmarks)
+endif()
+
+# Installation rules
+install(DIRECTORY include/ DESTINATION include)
+
+# Automatically run install after build in Release mode
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_custom_target(dist_slick_logger ALL
+        COMMAND ${CMAKE_COMMAND} --install ${CMAKE_BINARY_DIR} --prefix ${CMAKE_BINARY_DIR}/dist
+        COMMENT "Create distribute after release build"
+        VERBATIM
+    )
+
+    add_custom_target(package_slick_logger ALL
+        COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_BINARY_DIR}/dist/slick_logger_${BUILD_VERSION}.zip" --format=zip "include"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/dist"
+        COMMENT "Creating zip archive"
+    )
 endif()
