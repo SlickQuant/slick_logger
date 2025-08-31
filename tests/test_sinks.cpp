@@ -79,6 +79,7 @@ TEST_F(SinkTest, FileSinkBasic) {
     
     std::ifstream log_file("console_test.log");
     std::string line;
+    std::getline(log_file, line);   // first line is the logger's version
     std::getline(log_file, line);
     EXPECT_TRUE(line.find("File sink test message") != std::string::npos);
 }
@@ -108,6 +109,7 @@ TEST_F(SinkTest, MultiSinkTest) {
     ASSERT_TRUE(std::filesystem::exists("multi_sink_test.log"));
     std::ifstream log_file("multi_sink_test.log");
     std::string line;
+    std::getline(log_file, line);   // first line is the logger's version
     std::getline(log_file, line);
     EXPECT_TRUE(line.find("Multi-sink test message") != std::string::npos);
 }
@@ -153,6 +155,7 @@ TEST_F(SinkTest, DailyFileSinkTest) {
     // Check that the log message is in the base file
     std::ifstream log_file("daily_test.log");
     std::string line;
+    std::getline(log_file, line);   // first line is the logger's version
     std::getline(log_file, line);
     EXPECT_TRUE(line.find("Daily sink test message") != std::string::npos);
 }
@@ -268,6 +271,7 @@ TEST_F(SinkTest, BackwardsCompatibility) {
     
     std::ifstream log_file("console_test.log");
     std::string line;
+    std::getline(log_file, line);   // first line is the logger's version
     std::getline(log_file, line);
     EXPECT_TRUE(line.find("Backwards compatibility test") != std::string::npos);
 }

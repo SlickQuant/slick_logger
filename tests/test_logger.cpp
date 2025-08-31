@@ -37,6 +37,7 @@ TEST_F(SlickLoggerTest, BasicLogging) {
 
     std::ifstream log_file("test.log");
     std::string line;
+    std::getline(log_file, line);   // first line is the logger's version
     std::getline(log_file, line);
     EXPECT_TRUE(line.find("Test message") != std::string::npos);
 }
@@ -64,6 +65,7 @@ TEST_F(SlickLoggerTest, LogFilter) {
 
     std::ifstream log_file("test.log");
     std::string line;
+    std::getline(log_file, line);   // first line is the logger's version
     std::getline(log_file, line);
     EXPECT_TRUE(line.find("Test message") != std::string::npos);
     std::getline(log_file, line);
@@ -104,7 +106,7 @@ TEST_F(SlickLoggerTest, MultiThreadedLogging) {
     while (std::getline(log_file, line)) {
         count++;
     }
-    EXPECT_EQ(count, 10); // 5 from each thread
+    EXPECT_EQ(count, 11); // 5 from each thread  + 1 version line
 }
 
 TEST_F(SlickLoggerTest, JSONStringLogging) {
@@ -124,6 +126,7 @@ TEST_F(SlickLoggerTest, JSONStringLogging) {
     
     std::ifstream log_file("test_json.log");
     std::string line;
+    std::getline(log_file, line);   // first line is the logger's version
     
     std::getline(log_file, line);
     EXPECT_TRUE(line.find("[{\"T\":\"success\",\"msg\":\"connected\"}]") != std::string::npos);
@@ -157,6 +160,7 @@ TEST_F(SlickLoggerTest, FormatErrorHandling) {
     
     std::ifstream log_file("test_format_error.log");
     std::string line;
+    std::getline(log_file, line);   // first line is the logger's version
     std::string file_contents;
     while (std::getline(log_file, line)) {
         file_contents += line + "\n";
@@ -191,6 +195,7 @@ TEST_F(SlickLoggerTest, NoArgumentsFormatting) {
     
     std::ifstream log_file("test_no_args.log");
     std::string line;
+    std::getline(log_file, line);   // first line is the logger's version
     std::string file_contents;
     while (std::getline(log_file, line)) {
         file_contents += line + "\n";
@@ -221,6 +226,7 @@ TEST_F(SlickLoggerTest, MixedValidAndInvalidFormats) {
     std::ifstream log_file("test_mixed.log");
     std::string file_contents;
     std::string line;
+    std::getline(log_file, line);   // first line is the logger's version
     while (std::getline(log_file, line)) {
         file_contents += line + "\n";
     }
@@ -261,6 +267,7 @@ TEST_F(SlickLoggerTest, ConstCharArrayLogging) {
     std::ifstream log_file("test_char_array.log");
     std::string file_contents;
     std::string line;
+    std::getline(log_file, line);   // first line is the logger's version
     while (std::getline(log_file, line)) {
         file_contents += line + "\n";
     }

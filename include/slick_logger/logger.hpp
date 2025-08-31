@@ -48,8 +48,8 @@
 #define SLICK_LOGGER_VERSION_MAJOR 0
 #define SLICK_LOGGER_VERSION_MINOR 1
 #define SLICK_LOGGER_VERSION_PATCH 0
-#define SLICK_LOGGER_VERSION_TWEAK 0
-#define SLICK_LOGGER_VERSION "0.1.0.0"
+#define SLICK_LOGGER_VERSION_TWEAK 1
+#define SLICK_LOGGER_VERSION "0.1.0.1"
 
 namespace slick_logger {
 
@@ -439,6 +439,7 @@ private:
     Logger(Logger&&) = delete;
     Logger& operator=(Logger&&) = delete;
 
+    void start();
     void writer_thread_func();
     void write_log_entry(const LogEntry* entry_ptr, uint32_t count);
 
@@ -707,6 +708,10 @@ inline void Logger::init(const std::filesystem::path& log_file, size_t queue_siz
 
     queue_ = new slick::SlickQueue<LogEntry>(static_cast<uint32_t>(queue_size));
     log_file_ = log_file;
+    start();
+}
+
+inline void Logger::start() {
     running_ = true;
     
     // Initialize read_index_ before starting the thread
@@ -716,6 +721,7 @@ inline void Logger::init(const std::filesystem::path& log_file, size_t queue_siz
     
     // Give a small delay to ensure writer thread is started
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    log(LogLevel::L_INFO, "SlickLogger v{}", SLICK_LOGGER_VERSION);
 }
 
 inline void Logger::init(const LogConfig& config) {
@@ -743,15 +749,7 @@ inline void Logger::init(const LogConfig& config) {
     }
 
     queue_ = new slick::SlickQueue<LogEntry>(static_cast<uint32_t>(queue_size));
-    running_ = true;
-    
-    // Initialize read_index_ before starting the thread
-    read_index_ = queue_->initial_reading_index();
-    
-    writer_thread_ = std::thread([this]() { writer_thread_func(); });
-    
-    // Give a small delay to ensure writer thread is started
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    start();
 }
 
 inline void Logger::add_sink(std::shared_ptr<ISink> sink) {
@@ -779,15 +777,7 @@ inline void Logger::init(size_t queue_size) {
     }
 
     queue_ = new slick::SlickQueue<LogEntry>(static_cast<uint32_t>(queue_size));
-    running_ = true;
-    
-    // Initialize read_index_ before starting the thread
-    read_index_ = queue_->initial_reading_index();
-    
-    writer_thread_ = std::thread([this]() { writer_thread_func(); });
-    
-    // Give a small delay to ensure writer thread is started
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    start();
 }
 
 inline void Logger::add_console_sink(bool use_colors, bool use_stderr_for_errors) {

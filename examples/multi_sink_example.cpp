@@ -37,7 +37,10 @@ public:
         std::strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%S", &tm);
         
         // Get formatted message
-        std::string message = entry.formatter();
+        auto [message, good] = entry.formatter();
+        if (!good) {
+            level_str = "ERROR";
+        }
         
         // Escape JSON strings (basic implementation)
         std::string escaped_message = message;
@@ -79,7 +82,10 @@ public:
         char time_str[20];
         std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm);
         
-        std::string message = entry.formatter();
+        auto [message, good] = entry.formatter();
+        if (!good) {
+            level_str = "ERROR";
+        }
         std::string formatted = std::string(time_str) + " [" + level_str + "] " + message;
         
         std::lock_guard<std::mutex> lock(mutex_);
