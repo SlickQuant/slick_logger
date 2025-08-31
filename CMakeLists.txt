@@ -69,13 +69,17 @@ install(DIRECTORY include/ DESTINATION include)
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_custom_target(dist_slick_logger ALL
         COMMAND ${CMAKE_COMMAND} --install ${CMAKE_BINARY_DIR} --prefix ${CMAKE_BINARY_DIR}/dist
-        COMMENT "Create distribute after release build"
+        COMMENT "Create distribution after release build"
         VERBATIM
     )
 
-    add_custom_target(package_slick_logger ALL
-        COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_BINARY_DIR}/dist/slick_logger_${BUILD_VERSION}.zip" --format=zip "include"
-        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/dist"
-        COMMENT "Creating zip archive"
-    )
+    if (PROJECT_IS_TOP_LEVEL)
+        add_custom_target(package_slick_logger ALL
+            COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_BINARY_DIR}/dist/slick_logger_${BUILD_VERSION}.zip" --format=zip "include"
+            WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/dist"
+            COMMENT "Creating zip archive"
+        )
+
+        add_dependencies(package_slick_logger dist_slick_logger dist_slick_queue)
+    endif()
 endif()
