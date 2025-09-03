@@ -1,3 +1,8 @@
+# v0.1.0.2 - 09-03-2025
+- Replace raw pointers with std::unique_ptr for SlickQueue to ensure automatic memory cleanup  
+- Add shutdown() calls in init() functions to safely stop the logger before re-initialization  
+- Introduce validation checks to enforce proper sink configuration  
+
 # v0.1.0.1 - 8-30-2025
 - Update to SlickQueue v1.0.0.2
 - Add CHANGELOG

@@ -421,8 +421,9 @@ public:
 
     /**
      * @brief Shutdown the logger and flush all pending log entries
+     * @param clear_sinks Clear sink list
      */
-    void shutdown();
+    void shutdown(bool clear_sinks = true);
 
     /**
      * @brief Reset the logger to uninitialized state
@@ -443,7 +444,7 @@ private:
     void writer_thread_func();
     void write_log_entry(const LogEntry* entry_ptr, uint32_t count);
 
-    slick::SlickQueue<LogEntry>* queue_;
+    std::unique_ptr<slick::SlickQueue<LogEntry>> queue_;
     std::vector<std::shared_ptr<ISink>> sinks_;
     std::filesystem::path log_file_;
     std::thread writer_thread_;
@@ -688,8 +689,7 @@ inline Logger& Logger::instance() {
 }
 
 inline void Logger::init(const std::filesystem::path& log_file, size_t queue_size) {
-    // Backwards compatibility - create file sink for the specified file
-    clear_sinks();
+    shutdown(); // make sure the logger is stopped
     add_sink(std::make_shared<FileSink>(log_file));
     
     // Ensure queue_size is power of 2
@@ -706,7 +706,7 @@ inline void Logger::init(const std::filesystem::path& log_file, size_t queue_siz
         queue_size = temp + 1;
     }
 
-    queue_ = new slick::SlickQueue<LogEntry>(static_cast<uint32_t>(queue_size));
+    queue_ = std::make_unique<slick::SlickQueue<LogEntry>>(static_cast<uint32_t>(queue_size));
     log_file_ = log_file;
     start();
 }
@@ -725,7 +725,11 @@ inline void Logger::start() {
 }
 
 inline void Logger::init(const LogConfig& config) {
-    clear_sinks();
+    shutdown(); // make sure the logger is stopped
+
+    if (config.sinks.empty()) {
+        throw std::runtime_error("No sink. Sinks should be added in the config.");
+    }
     
     for (auto& sink : config.sinks) {
         add_sink(sink);
@@ -748,7 +752,7 @@ inline void Logger::init(const LogConfig& config) {
         queue_size = temp + 1;
     }
 
-    queue_ = new slick::SlickQueue<LogEntry>(static_cast<uint32_t>(queue_size));
+    queue_ = std::make_unique<slick::SlickQueue<LogEntry>>(static_cast<uint32_t>(queue_size));
     start();
 }
 
@@ -761,7 +765,13 @@ inline void Logger::clear_sinks() {
 }
 
 inline void Logger::init(size_t queue_size) {
-    // Initialize logger with empty sinks - sinks should be added before calling this
+    shutdown(false); // make sure the logger is stopped
+
+    if (sinks_.empty()) {
+        throw std::runtime_error("No sink. Sinks should be added first before calling this.");
+    }
+
+    // Initialize logger with pre-set sinks - sinks should be added before calling this
     // Ensure queue_size is power of 2
     if (queue_size & (queue_size - 1)) {
         // Round up to next power of 2
@@ -776,7 +786,7 @@ inline void Logger::init(size_t queue_size) {
         queue_size = temp + 1;
     }
 
-    queue_ = new slick::SlickQueue<LogEntry>(static_cast<uint32_t>(queue_size));
+    queue_ = std::make_unique<slick::SlickQueue<LogEntry>>(static_cast<uint32_t>(queue_size));
     start();
 }
 
@@ -849,7 +859,7 @@ constexpr auto make_owned_arg(T&& arg) {
 
 template<typename... Args>
 inline void Logger::log(LogLevel level, const std::string& format, Args&&... args) {
-    if (!running_ || !queue_ || level < log_level_.load(std::memory_order_relaxed))
+    if (!running_.load(std::memory_order_relaxed) || !queue_ || level < log_level_.load(std::memory_order_relaxed))
     {
         return;
     }
@@ -886,18 +896,19 @@ inline void Logger::log(LogLevel level, const std::string& format, Args&&... arg
     queue_->publish(index);
 }
 
-inline void Logger::shutdown() {
-    if (!running_) return;
-    running_ = false;
-    if (writer_thread_.joinable()) {
-        writer_thread_.join();
+inline void Logger::shutdown(bool clear_sinks) {
+    if (running_.load(std::memory_order_relaxed)) {
+        running_.store(false, std::memory_order_release);
+        if (writer_thread_.joinable()) {
+            writer_thread_.join();
+        }
     }
     
-    // Clear sinks to release file handles and other resources
-    sinks_.clear();
-    
-    delete queue_;
-    queue_ = nullptr;
+    if (clear_sinks) {
+        // Clear sinks to release file handles and other resources
+        sinks_.clear();
+    }
+    queue_.reset();
 }
 
 inline Logger::~Logger() {
@@ -913,7 +924,7 @@ inline void Logger::reset() {
 }
 
 inline void Logger::writer_thread_func() {
-    while (running_) {
+    while (running_.load(std::memory_order_relaxed)) {
         auto [entry_ptr, count] = queue_->read(read_index_);
         if (entry_ptr) {
             write_log_entry(entry_ptr, count);
