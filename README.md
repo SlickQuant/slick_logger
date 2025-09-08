@@ -5,6 +5,7 @@ A high-performance, cross-platform **header-only** logging library for C++20 usi
 ## Features
 
 - **High Performance**: Asynchronous logging using slick_queue ring buffer for minimal latency
+- **Modern Formatting**: Uses C++20 `std::format` for type-safe, efficient string formatting
 - **Multi-Sink Architecture**: Log to multiple destinations simultaneously (console, files, custom sinks)
 - **Log Rotation**: Size-based and time-based rotation with configurable retention
 - **Colored Console Output**: ANSI color support with configurable error routing
@@ -16,7 +17,7 @@ A high-performance, cross-platform **header-only** logging library for C++20 usi
 
 ## Requirements
 
-- C++20 compatible compiler
+- **C++20 compatible compiler** with `std::format` support (GCC 11+, Clang 14+, MSVC 19.29+)
 - CMake 3.20 or higher (for building examples/tests)
 - Internet connection for downloading slick_queue header
 
@@ -115,16 +116,64 @@ int main() {
 
     // Log messages - formatting happens in background thread for performance
     LOG_INFO("Application started");
-    LOG_DEBUG("Debug value: {}", 42);
+    LOG_DEBUG("Debug value: {}", 42);                    // std::format style placeholders
     LOG_WARN("Processed {} items", 150);
     LOG_ERROR("Error in {} at line {}", "function_name", 123);
-    LOG_INFO("User {} balance: ${:.2f}", "Alice", 1234.56);
+    LOG_INFO("User {} balance: ${:.2f}", "Alice", 1234.56); // Format specifiers supported
 
     // Shutdown (optional, called automatically on destruction)
     slick_logger::Logger::instance().shutdown();
     return 0;
 }
 ```
+
+### String Formatting with std::format
+
+slick_logger uses C++20's `std::format` for type-safe and efficient string formatting:
+
+```cpp
+#include <slick_logger/logger.hpp>
+
+int main() {
+    slick_logger::Logger::instance().init("app.log");
+
+    // Basic placeholders
+    LOG_INFO("Simple message: {}", "hello");
+    LOG_INFO("Number: {}", 42);
+
+    // Multiple arguments
+    LOG_INFO("User {} has {} items", "Alice", 15);
+
+    // Format specifiers (same as std::format)
+    LOG_INFO("Price: ${:.2f}", 29.99);           // Currency with 2 decimals
+    LOG_INFO("Progress: {:.1f}%", 85.7);         // Percentage with 1 decimal
+    LOG_INFO("Hex value: 0x{:x}", 255);          // Hexadecimal
+    LOG_INFO("Binary: 0b{:b}", 42);              // Binary
+    LOG_INFO("Scientific: {:.2e}", 12345.67);    // Scientific notation
+
+    // Width and alignment
+    LOG_INFO("Right aligned: {:>10}", "text");   // Right align in 10 chars
+    LOG_INFO("Left aligned: {:<10}", "text");    // Left align in 10 chars
+    LOG_INFO("Centered: {:^10}", "text");        // Center in 10 chars
+
+    // Zero padding
+    LOG_INFO("Zero padded: {:04d}", 42);         // 0042
+
+    // Custom types (as long as they support std::formatter)
+    std::vector<int> numbers = {1, 2, 3, 4, 5};
+    LOG_INFO("Vector size: {}", numbers.size());
+
+    slick_logger::Logger::instance().shutdown();
+    return 0;
+}
+```
+
+**Benefits of std::format:**
+- **Type Safety**: Compile-time checking of format strings and arguments
+- **Performance**: Highly optimized formatting implementation
+- **Rich Formatting**: Support for width, precision, alignment, and custom formatters
+- **Extensible**: Easy to add custom formatters for user-defined types
+- **Standard**: Part of C++20 standard library, no external dependencies
 
 ### Multi-Sink Usage
 

@@ -24,7 +24,8 @@ protected:
         std::vector<std::string> files = {
             "console_test.log", "multi_sink_test.log", "rotating_test.log",
             "rotating_test_1.log", "rotating_test_2.log", "rotating_test_3.log",
-            "daily_test.log", "daily_rotation_test.log", "daily_rotation_test_2025-08-25.log"
+            "daily_test.log", "daily_rotation_test.log", "daily_rotation_test_2025-08-25.log",
+            "daily_size_test.log"
         };
         
         for (const auto& file : files) {
@@ -37,7 +38,7 @@ protected:
         for (const auto& entry : std::filesystem::directory_iterator(".", ec)) {
             if (entry.is_regular_file()) {
                 std::string filename = entry.path().filename().string();
-                if (filename.find("daily_test_") == 0) {
+                if (filename.find("daily_test_") == 0 || filename.find("daily_size_test_") == 0) {
                     std::filesystem::remove(entry.path(), ec);
                 }
             }
@@ -95,6 +96,9 @@ TEST_F(SinkTest, MultiSinkTest) {
     slick_logger::Logger::instance().init(1024);
     
     LOG_INFO("Multi-sink test message");
+
+    auto file_sink = slick_logger::Logger::instance().get_sink<slick_logger::FileSink>();
+    EXPECT_TRUE(file_sink != nullptr);
     
     slick_logger::Logger::instance().reset();
     
@@ -257,6 +261,70 @@ TEST_F(SinkTest, DailyFileSinkRotation) {
     
     // Ensure day 1 messages are NOT in the current base file
     EXPECT_FALSE(final_base_content.find("Message from day 1") != std::string::npos);
+}
+
+TEST_F(SinkTest, DailyFileSinkSizeRotation) {
+    slick_logger::RotationConfig size_config;
+    size_config.max_file_size = 200; // Very small size for testing
+
+    slick_logger::Logger::instance().clear_sinks();
+    slick_logger::Logger::instance().add_daily_file_sink("daily_size_test.log", size_config);
+    slick_logger::Logger::instance().init(1024);
+
+    // Log enough messages to trigger size-based rotation
+    // Each message should be around 100+ bytes to trigger rotation quickly
+    for (int i = 0; i < 10; ++i) {
+        LOG_INFO("Size rotation test message number {} with enough text to reach the file size limit quickly", i);
+    }
+
+    slick_logger::Logger::instance().reset();
+
+    // Check that base file exists
+    EXPECT_TRUE(std::filesystem::exists("daily_size_test.log"));
+
+    // Get current date for filename verification
+    auto now = std::chrono::system_clock::now();
+    time_t time_val = std::chrono::system_clock::to_time_t(now);
+    std::tm* tm_ptr = std::localtime(&time_val);
+    std::string current_date;
+    if (tm_ptr) {
+        char date_str[11];
+        std::strftime(date_str, sizeof(date_str), "%Y-%m-%d", tm_ptr);
+        current_date = std::string(date_str);
+    } else {
+        current_date = "1970-01-01"; // fallback
+    }
+
+    // Check for size-rotated files with date and index pattern
+    std::string expected_first_rotation = "daily_size_test_" + current_date + "_001.log";
+    EXPECT_TRUE(std::filesystem::exists(expected_first_rotation));
+
+    // Check that the rotated file contains some of our messages
+    std::ifstream rotated_file(expected_first_rotation);
+    std::string rotated_content((std::istreambuf_iterator<char>(rotated_file)),
+                               std::istreambuf_iterator<char>());
+    rotated_file.close();
+
+    EXPECT_TRUE(rotated_content.find("Size rotation test message") != std::string::npos);
+
+    // Check that base file still contains the most recent messages
+    std::ifstream base_file("daily_size_test.log");
+    std::string base_content((std::istreambuf_iterator<char>(base_file)),
+                            std::istreambuf_iterator<char>());
+    base_file.close();
+
+    EXPECT_TRUE(base_content.find("Size rotation test message") != std::string::npos);
+
+    // Verify that multiple rotations can occur (if enough content was generated)
+    std::string expected_second_rotation = "daily_size_test_" + current_date + "_002.log";
+    if (std::filesystem::exists(expected_second_rotation)) {
+        std::ifstream second_rotated_file(expected_second_rotation);
+        std::string second_rotated_content((std::istreambuf_iterator<char>(second_rotated_file)),
+                                          std::istreambuf_iterator<char>());
+        second_rotated_file.close();
+
+        EXPECT_TRUE(second_rotated_content.find("Size rotation test message") != std::string::npos);
+    }
 }
 
 TEST_F(SinkTest, BackwardsCompatibility) {

@@ -37,6 +37,7 @@
 #include <functional>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <chrono>
 #include <iomanip>
 #include <ctime>
@@ -45,11 +46,16 @@
 #include <vector>
 #include <slick_queue/slick_queue.h>
 
+// For time functions on some platforms
+#ifdef _WIN32
+#include <time.h>
+#endif
+
 #define SLICK_LOGGER_VERSION_MAJOR 0
 #define SLICK_LOGGER_VERSION_MINOR 1
 #define SLICK_LOGGER_VERSION_PATCH 0
-#define SLICK_LOGGER_VERSION_TWEAK 2
-#define SLICK_LOGGER_VERSION "0.1.0.2"
+#define SLICK_LOGGER_VERSION_TWEAK 3
+#define SLICK_LOGGER_VERSION "0.1.0.3"
 
 namespace slick_logger {
 
@@ -96,44 +102,50 @@ public:
         : format_(Format::CUSTOM), custom_format_(custom_format) {}
 
     std::string format_timestamp(uint64_t timestamp_ns) const {
-        auto duration = std::chrono::nanoseconds(timestamp_ns);
-        auto time_point = std::chrono::system_clock::time_point(
-            std::chrono::duration_cast<std::chrono::system_clock::duration>(duration));
-        
-        time_t time_val = std::chrono::system_clock::to_time_t(time_point);
-        std::tm tm = *std::localtime(&time_val);
-        
+        using namespace std::chrono;
+
+        nanoseconds duration_ns(timestamp_ns);
+        system_clock::time_point time_point(duration_cast<system_clock::duration>(duration_ns));
+
+        time_t time_val = system_clock::to_time_t(time_point);
+        std::tm* tm_ptr = std::localtime(&time_val);
+        if (!tm_ptr) {
+            return "1970-01-01 00:00:00.000000"; // fallback timestamp
+        }
+        std::tm tm = *tm_ptr;
+
         // Extract microseconds and milliseconds
-        auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(duration).count() % 1000000;
+        auto microseconds_count = duration_cast<microseconds>(duration_ns).count();
+        auto microseconds = microseconds_count % 1000000;
         auto milliseconds = microseconds / 1000;
-        
+
         std::ostringstream oss;
-        
+
         switch (format_) {
             case Format::DEFAULT:
                 oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
                 break;
-                
+
             case Format::WITH_MICROSECONDS:
                 oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S")
                     << "." << std::setfill('0') << std::setw(6) << microseconds;
                 break;
-                
+
             case Format::WITH_MILLISECONDS:
                 oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S")
                     << "." << std::setfill('0') << std::setw(3) << milliseconds;
                 break;
-                
+
             case Format::ISO8601:
                 oss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%S")
                     << "." << std::setfill('0') << std::setw(6) << microseconds << "Z";
                 break;
-                
+
             case Format::TIME_ONLY:
                 oss << std::put_time(&tm, "%H:%M:%S")
                     << "." << std::setfill('0') << std::setw(6) << microseconds;
                 break;
-                
+
             case Format::CUSTOM:
                 if (!custom_format_.empty()) {
                     // Handle %f placeholder for microseconds in custom format
@@ -149,7 +161,7 @@ public:
                 }
                 break;
         }
-        
+
         return oss.str();
     }
 
@@ -164,17 +176,9 @@ struct LogEntry {
     uint64_t timestamp; // nanoseconds since epoch
 };
 
-enum class SinkType : uint8_t {
-    CONSOLE_SINK,
-    FILE_SINK,
-    ROTATING_FILE_SINK,
-    DAILY_FILE_SINK,
-};
-
 class ISink {
 public:
     virtual ~ISink() = default;
-    virtual SinkType type() const noexcept = 0;
     virtual void write(const LogEntry& entry) = 0;
     virtual void flush() = 0;
 };
@@ -194,8 +198,6 @@ public:
     explicit ConsoleSink(const std::string& custom_timestamp_format, bool use_colors = true, 
                         bool use_stderr_for_errors = true);
 
-    SinkType type() const noexcept override { return SinkType::CONSOLE_SINK; }
-    
     void write(const LogEntry& entry) override;
     void flush() override;
 
@@ -218,7 +220,6 @@ public:
 
     std::string file_path() const noexcept;
     
-    SinkType type() const noexcept override { return SinkType::FILE_SINK; }
     void write(const LogEntry& entry) override;
     void flush() override;
 
@@ -238,7 +239,6 @@ public:
     RotatingFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
                     const std::string& custom_timestamp_format);
     
-    SinkType type() const noexcept override { return SinkType::ROTATING_FILE_SINK; }
     void write(const LogEntry& entry) override;
 
 private:
@@ -255,11 +255,10 @@ class DailyFileSink : public FileSink {
 public:
     DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
                  TimestampFormatter::Format timestamp_format = TimestampFormatter::Format::WITH_MICROSECONDS);
-    
+
     DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
                  const std::string& custom_timestamp_format);
-    
-    SinkType type() const noexcept override { return SinkType::DAILY_FILE_SINK; }
+
     void write(const LogEntry& entry) override;
 
 protected:
@@ -268,10 +267,13 @@ protected:
 
     std::filesystem::path get_daily_filename();
     std::filesystem::path get_dated_filename(const std::string& date);
-    
+    std::filesystem::path get_dated_indexed_filename(const std::string& date, size_t index);
+
     RotationConfig config_;
     std::filesystem::path base_path_;
     std::string current_date_;
+    size_t current_file_size_;
+    size_t current_day_index_;
 };
 
 /**
@@ -411,10 +413,10 @@ public:
 
     /**
      * @brief Get the sink of givent type
-     * @param type The sink type
      * @return The shared_ptr of the given sink type. It could be null if the sink of give type doesn't exist
      */
-    std::shared_ptr<ISink> get_sink(SinkType type) const noexcept;
+    template<typename SinkT>
+    std::shared_ptr<ISink> get_sink() const noexcept;
 
     /**
      * @brief Get the current log level
@@ -594,8 +596,8 @@ inline RotatingFileSink::RotatingFileSink(const std::filesystem::path& base_path
 inline void RotatingFileSink::write(const LogEntry& entry) {
     check_rotation();
     
-    std::string formatted = format_log_entry(entry);
     if (file_stream_) {
+        std::string formatted = format_log_entry(entry);
         file_stream_ << formatted << std::endl;
         current_file_size_ += formatted.length() + 1; // +1 for newline
     }
@@ -638,29 +640,46 @@ inline std::filesystem::path RotatingFileSink::get_rotated_filename(size_t index
 
 inline DailyFileSink::DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
                                   TimestampFormatter::Format timestamp_format)
-    : FileSink(base_path, timestamp_format), config_(config), base_path_(base_path) {
+    : FileSink(base_path, timestamp_format), config_(config), base_path_(base_path),
+      current_file_size_(0), current_day_index_(0) {
     current_date_ = get_date_string();
+    // Initialize file size if file already exists
+    if (std::filesystem::exists(base_path_)) {
+        current_file_size_ = std::filesystem::file_size(base_path_);
+    }
     // Keep logging to base_path (e.g., daily.log) - FileSink constructor already opened it
 }
 
 inline DailyFileSink::DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
                                   const std::string& custom_timestamp_format)
-    : FileSink(base_path, custom_timestamp_format), config_(config), base_path_(base_path) {
+    : FileSink(base_path, custom_timestamp_format), config_(config), base_path_(base_path),
+      current_file_size_(0), current_day_index_(0) {
     current_date_ = get_date_string();
+    // Initialize file size if file already exists
+    if (std::filesystem::exists(base_path_)) {
+        current_file_size_ = std::filesystem::file_size(base_path_);
+    }
     // Keep logging to base_path (e.g., daily.log) - FileSink constructor already opened it
 }
 
 inline void DailyFileSink::write(const LogEntry& entry) {
     check_rotation();
-    FileSink::write(entry);
+
+    if (file_stream_) {
+        std::string formatted = format_log_entry(entry);
+        file_stream_ << formatted << std::endl;
+        current_file_size_ += formatted.length() + 1; // +1 for newline
+    }
 }
 
 inline void DailyFileSink::check_rotation() {
     std::string today = get_date_string();
+
+    // Check for date-based rotation
     if (today != current_date_) {
         // Close current file
         file_stream_.close();
-        
+
         // Rename current base file to dated filename (e.g., daily.log -> daily_2025-08-24.log)
         std::filesystem::path old_dated_file = get_dated_filename(current_date_);
         std::error_code ec;
@@ -674,14 +693,50 @@ inline void DailyFileSink::check_rotation() {
                 }
             }
         }
-        
+
+        // Reset index for new day
+        current_day_index_ = 0;
+
         // Reopen base file for new day's logs
         file_stream_.open(base_path_, std::ios::out | std::ios::trunc); // Start fresh for new day
         if (!file_stream_) {
             throw std::runtime_error("Failed to reopen daily log file: " + base_path_.string());
         }
-        
+
+        current_file_size_ = 0;
         current_date_ = today;
+    }
+
+    // Check for size-based rotation
+    if (current_file_size_ >= config_.max_file_size) {
+        // Close current file
+        file_stream_.close();
+
+        // Rename current base file to dated indexed filename (e.g., daily.log -> daily_2025-08-24_001.log)
+        std::filesystem::path old_dated_file = get_dated_indexed_filename(current_date_, current_day_index_);
+        std::error_code ec;
+        if (std::filesystem::exists(base_path_)) {
+            std::filesystem::rename(base_path_, old_dated_file, ec);
+            if (ec) {
+                // If rename fails, try copy and remove
+                std::filesystem::copy_file(base_path_, old_dated_file, ec);
+                if (!ec) {
+                    std::filesystem::remove(base_path_, ec);
+                }
+            }
+        }
+
+        // Increment index for next file
+        ++current_day_index_;
+
+        // Reopen base file for new logs
+        file_stream_.open(base_path_, std::ios::out | std::ios::trunc);
+        if (!file_stream_) {
+            throw std::runtime_error("Failed to reopen daily log file: " + base_path_.string());
+        }
+
+        current_file_size_ = 0;
+        return; // Don't check date rotation if we just did size rotation
     }
 }
 
@@ -695,11 +750,21 @@ inline std::filesystem::path DailyFileSink::get_dated_filename(const std::string
     return base_path_.parent_path() / filename;
 }
 
+inline std::filesystem::path DailyFileSink::get_dated_indexed_filename(const std::string& date, size_t index) {
+    std::ostringstream oss;
+    oss << base_path_.stem().string() << "_" << date << "_" << std::setfill('0') << std::setw(3) << index << base_path_.extension().string();
+    return base_path_.parent_path() / oss.str();
+}
+
 inline std::string DailyFileSink::get_date_string() {
     auto now = std::chrono::system_clock::now();
     time_t time_val = std::chrono::system_clock::to_time_t(now);
-    std::tm tm = *std::localtime(&time_val);
-    
+    std::tm* tm_ptr = std::localtime(&time_val);
+    if (!tm_ptr) {
+        return "1970-01-01"; // fallback date
+    }
+    std::tm tm = *tm_ptr;
+
     char date_str[11];
     std::strftime(date_str, sizeof(date_str), "%Y-%m-%d", &tm);
     return std::string(date_str);
@@ -786,9 +851,10 @@ inline void Logger::clear_sinks() {
     sinks_.clear();
 }
 
-inline std::shared_ptr<ISink> Logger::get_sink(SinkType type) const noexcept {
+template<typename SinkT>
+inline std::shared_ptr<ISink> Logger::get_sink() const noexcept {
     for (auto &sink : sinks_) {
-        if (sink->type() == type) {
+        if (dynamic_cast<SinkT*>(sink.get()) != nullptr) {
             return sink;
         }
     }

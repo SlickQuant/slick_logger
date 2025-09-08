@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-set(BUILD_VERSION 0.1.0.2)
+set(BUILD_VERSION 0.1.0.3)
 project(slick_logger VERSION ${BUILD_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
