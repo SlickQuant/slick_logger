@@ -2,8 +2,7 @@
 - Add file_path() getter to FileSink for path retrieval
 - Add get_sink<SinkT> to Logger for retrieving sinks by type
 - Update CMakeLists.txt to auto-generate header with warning messages from src/logger.hpp
-- Modify src/logger.hpp to include SinkType and type methods, using @WARNING_MESSAGE@ placeholder for auto-generation
-- Modified DailyFileSink to also support size based rotation.
+- Modified DailyFileSink to also support size-based rotation.
 
 # v0.1.0.2 - 09-03-2025
 - Replace raw pointers with std::unique_ptr for SlickQueue to ensure automatic memory cleanup  
