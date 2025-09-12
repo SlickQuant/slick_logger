@@ -27,7 +27,7 @@ A high-performance, cross-platform **header-only** logging library for C++20 usi
 For manual installation, you need both slick_logger and its dependency:
 
 1. Copy the `include/slick_logger/` directory to your project
-2. Download `slick_queue.h` from https://raw.githubusercontent.com/SlickTech/slick_queue/main/include/slick_queue/slick_queue.h
+2. Download `slick_queue.h` from https://raw.githubusercontent.com/SlickQuant/slick_queue/main/include/slick_queue/slick_queue.h
 3. Place `slick_queue.h` in your include path or alongside the slick_logger headers
 
 Your project structure should look like:
@@ -63,7 +63,7 @@ set(BUILD_SLICK_LOGGER_BENCHMARKS OFF CACHE BOOL "" FORCE)
 
 FetchContent_Declare(
     slick_logger
-    GIT_REPOSITORY https://github.com/SlickTech/slick_logger.git
+    GIT_REPOSITORY https://github.com/SlickQuant/slick_logger.git
     GIT_TAG main
 )
 
@@ -326,7 +326,7 @@ This approach moves potentially expensive formatting and I/O operations off the 
 
 ## Integration
 
-slick_queue is downloaded automatically during the build process from https://github.com/SlickTech/slick_queue.
+slick_queue is downloaded automatically during the build process from https://github.com/SlickQuant/slick_queue.
 
 ## Header-Only Benefits
 

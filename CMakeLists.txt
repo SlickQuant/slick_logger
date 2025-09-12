@@ -12,7 +12,7 @@ include(FetchContent)
 set(BUILD_SLICK_QUEUE_TESTS OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
     slick_queue
-    GIT_REPOSITORY https://github.com/SlickTech/slick_queue.git
+    GIT_REPOSITORY https://github.com/SlickQuant/slick_queue.git
     GIT_TAG v1.0.0.2
 )
 FetchContent_MakeAvailable(slick_queue)
