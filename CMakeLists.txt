@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-set(BUILD_VERSION 0.1.0.3)
+set(BUILD_VERSION 0.1.1.0)
 project(slick_logger VERSION ${BUILD_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -13,7 +13,7 @@ set(BUILD_SLICK_QUEUE_TESTS OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
     slick_queue
     GIT_REPOSITORY https://github.com/SlickQuant/slick_queue.git
-    GIT_TAG v1.0.0.2
+    GIT_TAG v1.0.1.0
 )
 FetchContent_MakeAvailable(slick_queue)
 

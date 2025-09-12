@@ -1,3 +1,6 @@
+# v0.1.1.0 - 09-12-2025
+- Change organization name
+
 # v0.1.0.3 - 09-08-2025
 - Add file_path() getter to FileSink for path retrieval
 - Add get_sink<SinkT> to Logger for retrieving sinks by type
