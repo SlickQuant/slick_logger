@@ -42,6 +42,7 @@
 #include <format>
 #include <utility>
 #include <vector>
+#include <string_view>
 #include <slick_queue/slick_queue.h>
 
 // For time functions on some platforms
@@ -172,13 +173,67 @@ struct LogEntry {
     LogLevel level;
     std::function<std::pair<std::string,bool>()> formatter; // Lambda that returns formatted message
     uint64_t timestamp; // nanoseconds since epoch
+    int sink_index = -1; // Optional sink index, logged by that sink only
 };
 
 class ISink {
 public:
+    ISink(std::string&& name = "") : name_(std::move(name)) {}
     virtual ~ISink() = default;
     virtual void write(const LogEntry& entry) = 0;
     virtual void flush() = 0;
+
+    void set_min_level(LogLevel level) noexcept { min_level_ = level; }
+    LogLevel min_level() const noexcept { return min_level_; }
+
+    /**
+     * @brief Set whether this sink is dedicated (logs only its own entries)
+     * @param dedicated True to make the sink dedicated, false otherwise
+     */
+    void set_dedicated(bool dedicated) noexcept { dedicated_ = dedicated; }
+
+    /**
+     * @brief Check if this sink is dedicated (logs only its own entries)
+     * @return True if the sink is dedicated, false otherwise
+     */
+    bool is_dedicated() const noexcept { return dedicated_; }
+
+    /**
+     * @brief Log a message with a specific log level and format to this sink only
+     * @param level LogLevel of the message
+     * @param format Format string (printf-style)
+     * @param args Arguments for the format string
+     */
+    template<typename... Args>
+    void log(LogLevel level, const std::string& format, Args&&... args);
+
+    template<typename... Args>
+    void log_trace(const std::string& format, Args&&... args);
+
+    template<typename... Args>
+    void log_debug(const std::string& format, Args&&... args);
+
+    template<typename... Args>
+    void log_info(const std::string& format, Args&&... args);
+
+    template<typename... Args>
+    void log_warn(const std::string& format, Args&&... args);
+
+    template<typename... Args>
+    void log_error(const std::string& format, Args&&... args);
+
+    template<typename... Args>
+    void log_fatal(const std::string& format, Args&&... args);
+
+    const std::string_view name() const noexcept { return name_; }
+
+    int index() const noexcept { return index_; }
+    void set_index(int idx) noexcept { index_ = idx; }
+protected:
+    std::string name_;
+    int index_ = -1; // Index assigned by Logger when added
+    LogLevel min_level_ = LogLevel::L_TRACE; // Minimum level for this sink
+    bool dedicated_ = false; // Whether this sink is dedicated (logs only its own entries)
 };
 
 struct RotationConfig {
@@ -190,11 +245,12 @@ struct RotationConfig {
 
 class ConsoleSink : public ISink {
 public:
-    explicit ConsoleSink(bool use_colors = true, bool use_stderr_for_errors = true, 
-                        TimestampFormatter::Format timestamp_format = TimestampFormatter::Format::WITH_MICROSECONDS);
+    explicit ConsoleSink(bool use_colors = true, bool use_stderr_for_errors = true,
+                         TimestampFormatter::Format timestamp_format = TimestampFormatter::Format::WITH_MICROSECONDS,
+                         std::string&& name = "");
     
     explicit ConsoleSink(const std::string& custom_timestamp_format, bool use_colors = true, 
-                        bool use_stderr_for_errors = true);
+                        bool use_stderr_for_errors = true, std::string&& name = "");
 
     void write(const LogEntry& entry) override;
     void flush() override;
@@ -211,10 +267,11 @@ private:
 
 class FileSink : public ISink {
 public:
-    explicit FileSink(const std::filesystem::path& file_path, 
-                     TimestampFormatter::Format timestamp_format = TimestampFormatter::Format::WITH_MICROSECONDS);
+    explicit FileSink(const std::filesystem::path& file_path,
+                      TimestampFormatter::Format timestamp_format = TimestampFormatter::Format::WITH_MICROSECONDS,
+                      std::string&& name = "");
     
-    explicit FileSink(const std::filesystem::path& file_path, const std::string& custom_timestamp_format);
+    explicit FileSink(const std::filesystem::path& file_path, const std::string& custom_timestamp_format, std::string&& name = "");
 
     std::string file_path() const noexcept;
     
@@ -232,10 +289,11 @@ protected:
 class RotatingFileSink : public FileSink {
 public:
     RotatingFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
-                    TimestampFormatter::Format timestamp_format = TimestampFormatter::Format::WITH_MICROSECONDS);
+                    TimestampFormatter::Format timestamp_format = TimestampFormatter::Format::WITH_MICROSECONDS,
+                    std::string&& name = "");
     
     RotatingFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
-                    const std::string& custom_timestamp_format);
+                    const std::string& custom_timestamp_format, std::string&& name = "");
     
     void write(const LogEntry& entry) override;
 
@@ -252,10 +310,11 @@ private:
 class DailyFileSink : public FileSink {
 public:
     DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
-                 TimestampFormatter::Format timestamp_format = TimestampFormatter::Format::WITH_MICROSECONDS);
+                 TimestampFormatter::Format timestamp_format = TimestampFormatter::Format::WITH_MICROSECONDS,
+                 std::string&& name = "");
 
     DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
-                 const std::string& custom_timestamp_format);
+                 const std::string& custom_timestamp_format, std::string&& name = "");
 
     void write(const LogEntry& entry) override;
 
@@ -324,90 +383,102 @@ public:
      * @brief Add a console sink with optional color and error stream settings
      * @param use_colors Whether to use colors in console output (default true)
      * @param use_stderr_for_errors Whether to send warnings and errors to stderr (default true)
+     * @param name Optional name for the sink
      */
-    void add_console_sink(bool use_colors = true, bool use_stderr_for_errors = true);
+    void add_console_sink(bool use_colors = true, bool use_stderr_for_errors = true, std::string&& name = "");
 
     /**
      * @brief Add a console sink with custom timestamp format and optional color and error stream settings
      * @param timestamp_format Predefined timestamp format enum
      * @param use_colors Whether to use colors in console output (default true)
      * @param use_stderr_for_errors Whether to send warnings and errors to stderr (default true)
+     * @param name Optional name for the sink
      */
-    void add_console_sink(TimestampFormatter::Format timestamp_format, bool use_colors = true, bool use_stderr_for_errors = true);
+    void add_console_sink(TimestampFormatter::Format timestamp_format, bool use_colors = true, bool use_stderr_for_errors = true, std::string&& name = "");
 
     /**
      * @brief Add a console sink with custom timestamp format string and optional color and error stream settings
      * @param custom_timestamp_format Custom timestamp format string
      * @param use_colors Whether to use colors in console output (default true)
      * @param use_stderr_for_errors Whether to send warnings and errors to stderr (default true)
+     * @param name Optional name for the sink
      */
-    void add_console_sink(const std::string& custom_timestamp_format, bool use_colors = true, bool use_stderr_for_errors = true);
+    void add_console_sink(const std::string& custom_timestamp_format, bool use_colors = true, bool use_stderr_for_errors = true, std::string&& name = "");
     
     /**
      * @brief Add a file sink
      * @param path Path to the log file
+     * @param name Optional name for the sink
      */
-    void add_file_sink(const std::filesystem::path& path);
+    void add_file_sink(const std::filesystem::path& path, std::string&& name = "");
 
     /**
      * @brief Add a file sink with custom timestamp format
      * @param path Path to the log file
      * @param timestamp_format Predefined timestamp format enum
+     * @param name Optional name for the sink
      */
-    void add_file_sink(const std::filesystem::path& path, TimestampFormatter::Format timestamp_format);
+    void add_file_sink(const std::filesystem::path& path, TimestampFormatter::Format timestamp_format, std::string&& name = "");
 
     /**
      * @brief Add a file sink with custom timestamp format string
      * @param path Path to the log file
      * @param custom_timestamp_format Custom timestamp format string
+     * @param name Optional name for the sink
      */
-    void add_file_sink(const std::filesystem::path& path, const std::string& custom_timestamp_format);
+    void add_file_sink(const std::filesystem::path& path, const std::string& custom_timestamp_format, std::string&& name = "");
     
     /**
      * @brief Add a rotating file sink
      * @param path Base path to the log file
      * @param config Rotation configuration
+     * @param name Optional name for the sink
      */
-    void add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config);
+    void add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config, std::string&& name = "");
 
     /**
      * @brief Add a rotating file sink with custom timestamp format
      * @param path Base path to the log file
      * @param config Rotation configuration
      * @param timestamp_format Predefined timestamp format enum
+     * @param name Optional name for the sink
      */
-    void add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config, TimestampFormatter::Format timestamp_format);
+    void add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config, TimestampFormatter::Format timestamp_format, std::string&& name = "");
 
     /**
      * @brief Add a rotating file sink with custom timestamp format string
      * @param path Base path to the log file
      * @param config Rotation configuration
      * @param custom_timestamp_format Custom timestamp format string
+     * @param name Optional name for the sink
      */
-    void add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config, const std::string& custom_timestamp_format);
+    void add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config, const std::string& custom_timestamp_format, std::string&& name = "");
     
     /**
      * @brief Add a daily file sink
      * @param path Base path to the log file
-     * @param config Rotation configuration
+     * @param name Optional name for the sink
+     * @param config Optional Rotation configuration (uses default if not provided)
      */
-    void add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config = {});
+    void add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config = {}, std::string&& name="");
 
     /**
      * @brief Add a daily file sink with custom timestamp format
      * @param path Base path to the log file
      * @param config Rotation configuration
      * @param timestamp_format Predefined timestamp format enum
+     * @param name Optional name for the sink
      */
-    void add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config, TimestampFormatter::Format timestamp_format);
+    void add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config, TimestampFormatter::Format timestamp_format, std::string&& name = "");
 
     /**
      * @brief Add a daily file sink with custom timestamp format string
      * @param path Base path to the log file
      * @param config Rotation configuration
      * @param custom_timestamp_format Custom timestamp format string
+     * @param name Optional name for the sink
      */
-    void add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config, const std::string& custom_timestamp_format);
+    void add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config, const std::string& custom_timestamp_format, std::string&& name = "");
 
     /**
      * @brief Get the sink of givent type
@@ -415,6 +486,12 @@ public:
      */
     template<typename SinkT>
     std::shared_ptr<ISink> get_sink() const noexcept;
+
+    /**
+     * @brief Get the sink by name
+     * @return The shared_ptr of the given sink name. It could be null if the sink of give name doesn't exist
+     */
+    std::shared_ptr<ISink> get_sink(std::string_view name) const noexcept;
 
     /**
      * @brief Get the current log level
@@ -440,6 +517,16 @@ public:
      */
     template<typename... Args>
     void log(LogLevel level, const std::string& format, Args&&... args);
+
+    /**
+     * @brief Log a message to a specific sink by index
+     * @param index Index of the sink to log to
+     * @param level LogLevel of the message
+     * @param format Format string (printf-style)
+     * @param args Arguments for the format string
+     */
+    template<typename... Args>
+    void log_to_sink(int sink_index, LogLevel level, const std::string& format, Args&&... args);
 
     /**
      * @brief Shutdown the logger and flush all pending log entries
@@ -476,20 +563,56 @@ private:
     std::atomic<bool> running_{false};
     uint64_t read_index_{0};
     std::atomic<LogLevel> log_level_{LogLevel::L_TRACE};
+    std::unordered_map<std::string_view, int> sinkname_index_map_;
 };
 
 // Implementation (header-only library)
 
-inline ConsoleSink::ConsoleSink(bool use_colors, bool use_stderr_for_errors, 
-                                TimestampFormatter::Format timestamp_format)
-    : use_colors_(use_colors), use_stderr_for_errors_(use_stderr_for_errors), 
-      timestamp_formatter_(timestamp_format) {
+template<typename... Args>
+inline void ISink::log(LogLevel level, const std::string& format, Args&&... args) {
+    Logger::instance().log_to_sink(index_, level, format, std::forward<Args>(args)...);
+}
+
+template<typename... Args>
+inline void ISink::log_trace(const std::string& format, Args&&... args) {
+    log(LogLevel::L_TRACE, format, std::forward<Args>(args)...);
+}
+
+template<typename... Args>
+inline void ISink::log_debug(const std::string& format, Args&&... args) {
+    log(LogLevel::L_DEBUG, format, std::forward<Args>(args)...);
+}
+
+template<typename... Args>
+inline void ISink::log_info(const std::string& format, Args&&... args) {
+    log(LogLevel::L_INFO, format, std::forward<Args>(args)...);
+}
+
+template<typename... Args>
+inline void ISink::log_warn(const std::string& format, Args&&... args) {
+    log(LogLevel::L_WARN, format, std::forward<Args>(args)...);
+}
+
+template<typename... Args>
+inline void ISink::log_error(const std::string& format, Args&&... args) {
+    log(LogLevel::L_ERROR, format, std::forward<Args>(args)...);
+}
+
+template<typename... Args>
+inline void ISink::log_fatal(const std::string& format, Args&&... args) {
+    log(LogLevel::L_FATAL, format, std::forward<Args>(args)...);
+}
+
+inline ConsoleSink::ConsoleSink(bool use_colors, bool use_stderr_for_errors,
+                                TimestampFormatter::Format timestamp_format, std::string&& name)
+    : ISink(std::move(name)), use_colors_(use_colors), use_stderr_for_errors_(use_stderr_for_errors)
+    , timestamp_formatter_(timestamp_format) {
 }
 
 inline ConsoleSink::ConsoleSink(const std::string& custom_timestamp_format, bool use_colors, 
-                                bool use_stderr_for_errors)
-    : use_colors_(use_colors), use_stderr_for_errors_(use_stderr_for_errors), 
-      timestamp_formatter_(custom_timestamp_format) {
+                                bool use_stderr_for_errors, std::string&& name)
+    : ISink(std::move(name)), use_colors_(use_colors), use_stderr_for_errors_(use_stderr_for_errors)
+    , timestamp_formatter_(custom_timestamp_format) {
 }
 
 inline void ConsoleSink::write(const LogEntry& entry) {
@@ -539,17 +662,18 @@ inline std::string ConsoleSink::get_reset_code() {
     return "\033[0m";
 }
 
-inline FileSink::FileSink(const std::filesystem::path& file_path, 
-                          TimestampFormatter::Format timestamp_format)
-    : file_path_(file_path), timestamp_formatter_(timestamp_format) {
+inline FileSink::FileSink(const std::filesystem::path& file_path,
+                          TimestampFormatter::Format timestamp_format, std::string&& name)
+    : ISink(std::move(name)), file_path_(file_path), timestamp_formatter_(timestamp_format) {
     file_stream_.open(file_path_, std::ios::app);
     if (!file_stream_) {
         throw std::runtime_error("Failed to open log file: " + file_path_.string());
     }
 }
 
-inline FileSink::FileSink(const std::filesystem::path& file_path, const std::string& custom_timestamp_format)
-    : file_path_(file_path), timestamp_formatter_(custom_timestamp_format) {
+inline FileSink::FileSink(const std::filesystem::path& file_path,
+                          const std::string& custom_timestamp_format, std::string&& name)
+    : ISink(std::move(name)), file_path_(file_path), timestamp_formatter_(custom_timestamp_format) {
     file_stream_.open(file_path_, std::ios::app);
     if (!file_stream_) {
         throw std::runtime_error("Failed to open log file: " + file_path_.string());
@@ -579,16 +703,16 @@ inline std::string FileSink::format_log_entry(const LogEntry& entry) {
 }
 
 inline RotatingFileSink::RotatingFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
-                                        TimestampFormatter::Format timestamp_format)
-    : FileSink(base_path, timestamp_format), config_(config), base_path_(base_path), current_file_size_(0) {
+                                          TimestampFormatter::Format timestamp_format, std::string&& name)
+    : FileSink(base_path, timestamp_format, std::move(name)), config_(config), base_path_(base_path), current_file_size_(0) {
     if (std::filesystem::exists(base_path_)) {
         current_file_size_ = std::filesystem::file_size(base_path_);
     }
 }
 
 inline RotatingFileSink::RotatingFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
-                                        const std::string& custom_timestamp_format)
-    : FileSink(base_path, custom_timestamp_format), config_(config), base_path_(base_path), current_file_size_(0) {
+                                        const std::string& custom_timestamp_format, std::string&& name)
+    : FileSink(base_path, custom_timestamp_format, std::move(name)), config_(config), base_path_(base_path), current_file_size_(0) {
     if (std::filesystem::exists(base_path_)) {
         current_file_size_ = std::filesystem::file_size(base_path_);
     }
@@ -640,8 +764,8 @@ inline std::filesystem::path RotatingFileSink::get_rotated_filename(size_t index
 }
 
 inline DailyFileSink::DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
-                                  TimestampFormatter::Format timestamp_format)
-    : FileSink(base_path, timestamp_format), config_(config), base_path_(base_path),
+                                    TimestampFormatter::Format timestamp_format, std::string&& name)
+    : FileSink(base_path, timestamp_format, std::move(name)), config_(config), base_path_(base_path),
       current_file_size_(0), current_day_index_(0) {
     current_date_ = get_date_string();
     // Initialize file size if file already exists
@@ -652,8 +776,8 @@ inline DailyFileSink::DailyFileSink(const std::filesystem::path& base_path, cons
 }
 
 inline DailyFileSink::DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
-                                  const std::string& custom_timestamp_format)
-    : FileSink(base_path, custom_timestamp_format), config_(config), base_path_(base_path),
+                                  const std::string& custom_timestamp_format, std::string&& name)
+    : FileSink(base_path, custom_timestamp_format, std::move(name)), config_(config), base_path_(base_path),
       current_file_size_(0), current_day_index_(0) {
     current_date_ = get_date_string();
     // Initialize file size if file already exists
@@ -822,11 +946,16 @@ inline void Logger::init(const LogConfig& config) {
 }
 
 inline void Logger::add_sink(std::shared_ptr<ISink> sink) {
+    sink->set_index(static_cast<int>(sinks_.size()));
     sinks_.push_back(sink);
+    if (!sink->name().empty()) {
+        sinkname_index_map_[sink->name()] = sink->index();
+    }
 }
 
 inline void Logger::clear_sinks() {
     sinks_.clear();
+    sinkname_index_map_.clear();
 }
 
 template<typename SinkT>
@@ -837,6 +966,17 @@ inline std::shared_ptr<ISink> Logger::get_sink() const noexcept {
         }
     }
     return nullptr;
+}
+
+inline std::shared_ptr<ISink> Logger::get_sink(std::string_view name) const noexcept {
+    auto iter = sinkname_index_map_.find(name);
+    if (iter != sinkname_index_map_.end()) {
+        int index = iter->second;
+        if (index >= 0 && static_cast<size_t>(index) < sinks_.size()) [[likely]] {
+            return sinks_[index];
+        }
+    }
+    return nullptr;  
 }
 
 inline void Logger::init(size_t queue_size) {
@@ -854,52 +994,52 @@ inline void Logger::init(size_t queue_size) {
     start();
 }
 
-inline void Logger::add_console_sink(bool use_colors, bool use_stderr_for_errors) {
-    add_sink(std::make_shared<ConsoleSink>(use_colors, use_stderr_for_errors));
+inline void Logger::add_console_sink(bool use_colors, bool use_stderr_for_errors, std::string&& name) {
+    add_sink(std::make_shared<ConsoleSink>(use_colors, use_stderr_for_errors, TimestampFormatter::Format::WITH_MICROSECONDS, std::move(name)));
 }
 
-inline void Logger::add_console_sink(TimestampFormatter::Format timestamp_format, bool use_colors, bool use_stderr_for_errors) {
-    add_sink(std::make_shared<ConsoleSink>(use_colors, use_stderr_for_errors, timestamp_format));
+inline void Logger::add_console_sink(TimestampFormatter::Format timestamp_format, bool use_colors, bool use_stderr_for_errors, std::string&& name) {
+    add_sink(std::make_shared<ConsoleSink>(use_colors, use_stderr_for_errors, timestamp_format, std::move(name)));
 }
 
-inline void Logger::add_console_sink(const std::string& custom_timestamp_format, bool use_colors, bool use_stderr_for_errors) {
-    add_sink(std::make_shared<ConsoleSink>(custom_timestamp_format, use_colors, use_stderr_for_errors));
+inline void Logger::add_console_sink(const std::string& custom_timestamp_format, bool use_colors, bool use_stderr_for_errors, std::string&& name) {
+    add_sink(std::make_shared<ConsoleSink>(custom_timestamp_format, use_colors, use_stderr_for_errors, std::move(name)));
 }
 
-inline void Logger::add_file_sink(const std::filesystem::path& path) {
-    add_sink(std::make_shared<FileSink>(path));
+inline void Logger::add_file_sink(const std::filesystem::path& path, std::string&& name) {
+    add_sink(std::make_shared<FileSink>(path, TimestampFormatter::Format::WITH_MICROSECONDS, std::move(name)));
 }
 
-inline void Logger::add_file_sink(const std::filesystem::path& path, TimestampFormatter::Format timestamp_format) {
-    add_sink(std::make_shared<FileSink>(path, timestamp_format));
+inline void Logger::add_file_sink(const std::filesystem::path& path, TimestampFormatter::Format timestamp_format, std::string&& name) {
+    add_sink(std::make_shared<FileSink>(path, timestamp_format, std::move(name)));
 }
 
-inline void Logger::add_file_sink(const std::filesystem::path& path, const std::string& custom_timestamp_format) {
-    add_sink(std::make_shared<FileSink>(path, custom_timestamp_format));
+inline void Logger::add_file_sink(const std::filesystem::path& path, const std::string& custom_timestamp_format, std::string&& name) {
+    add_sink(std::make_shared<FileSink>(path, custom_timestamp_format, std::move(name)));
 }
 
-inline void Logger::add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config) {
-    add_sink(std::make_shared<RotatingFileSink>(path, config));
+inline void Logger::add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config, std::string&& name) {
+    add_sink(std::make_shared<RotatingFileSink>(path, config, std::move(name)));
 }
 
-inline void Logger::add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config, TimestampFormatter::Format timestamp_format) {
-    add_sink(std::make_shared<RotatingFileSink>(path, config, timestamp_format));
+inline void Logger::add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config, TimestampFormatter::Format timestamp_format, std::string&& name) {
+    add_sink(std::make_shared<RotatingFileSink>(path, config, timestamp_format, std::move(name)));
 }
 
-inline void Logger::add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config, const std::string& custom_timestamp_format) {
-    add_sink(std::make_shared<RotatingFileSink>(path, config, custom_timestamp_format));
+inline void Logger::add_rotating_file_sink(const std::filesystem::path& path, const RotationConfig& config, const std::string& custom_timestamp_format, std::string&& name) {
+    add_sink(std::make_shared<RotatingFileSink>(path, config, custom_timestamp_format, std::move(name)));
 }
 
-inline void Logger::add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config) {
-    add_sink(std::make_shared<DailyFileSink>(path, config));
+inline void Logger::add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config, std::string&& name) {
+    add_sink(std::make_shared<DailyFileSink>(path, config, std::move(name)));
 }
 
-inline void Logger::add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config, TimestampFormatter::Format timestamp_format) {
-    add_sink(std::make_shared<DailyFileSink>(path, config, timestamp_format));
+inline void Logger::add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config, TimestampFormatter::Format timestamp_format, std::string&& name) {
+    add_sink(std::make_shared<DailyFileSink>(path, config, timestamp_format, std::move(name)));
 }
 
-inline void Logger::add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config, const std::string& custom_timestamp_format) {
-    add_sink(std::make_shared<DailyFileSink>(path, config, custom_timestamp_format));
+inline void Logger::add_daily_file_sink(const std::filesystem::path& path, const RotationConfig& config, const std::string& custom_timestamp_format, std::string&& name) {
+    add_sink(std::make_shared<DailyFileSink>(path, config, custom_timestamp_format, std::move(name)));
 }
 
 // Helper function to convert arguments to owned types
@@ -923,6 +1063,11 @@ constexpr auto make_owned_arg(T&& arg) {
 
 template<typename... Args>
 inline void Logger::log(LogLevel level, const std::string& format, Args&&... args) {
+    log_to_sink(-1, level, format, std::forward<Args>(args)...);
+}
+
+template<typename... Args>
+inline void Logger::log_to_sink(int sink_index, LogLevel level, const std::string& format, Args&&... args) {
     if (!running_.load(std::memory_order_relaxed) || !queue_ || level < log_level_.load(std::memory_order_relaxed))
     {
         return;
@@ -957,6 +1102,7 @@ inline void Logger::log(LogLevel level, const std::string& format, Args&&... arg
     entry_ref.level = level;
     entry_ref.formatter = std::move(formatter);
     entry_ref.timestamp = static_cast<uint64_t>(ns);
+    entry_ref.sink_index = sink_index;
     queue_->publish(index);
 }
 
@@ -1010,10 +1156,20 @@ inline void Logger::writer_thread_func() {
 inline void Logger::write_log_entry(const LogEntry* entry_ptr, uint32_t count) {
     for (uint32_t i = 0; i < count; ++i) {
         const LogEntry& entry = entry_ptr[i];
-        
-        // Write to all configured sinks
-        for (auto& sink : sinks_) {
-            if (sink) {
+        if (entry.sink_index >= 0 && static_cast<size_t>(entry.sink_index) < sinks_.size()) {
+            // Write to specific sink
+            auto &sink = sinks_[entry.sink_index];
+            if (entry.level < sink->min_level()) {
+                continue; // Skip if log level is below sink's minimum level
+            }
+            sink->write(entry);
+        }
+        else {
+            // Write to all non-dedicated sinks
+            for (auto& sink : sinks_) {
+                if (entry.level < sink->min_level() || sink->is_dedicated()) {
+                    continue; // Skip if log level is below sink's minimum level or sink is dedicated
+                }
                 sink->write(entry);
             }
         }

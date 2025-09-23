@@ -380,6 +380,174 @@ TEST_F(SinkTest, LogConfigTest) {
     EXPECT_FALSE(file_content.find("This should not appear") != std::string::npos);
 }
 
+TEST_F(SinkTest, NamedSinkDirectLogging) {
+    // Test the new ISink::log() methods for direct selective logging
+    slick_logger::Logger::instance().clear_sinks();
+    
+    // Create named sinks
+    slick_logger::Logger::instance().add_file_sink("named_sink1.log", "sink1");
+    slick_logger::Logger::instance().add_file_sink("named_sink2.log", "sink2");
+    slick_logger::Logger::instance().add_console_sink(false, false, "console"); // no colors for testing
+    slick_logger::Logger::instance().init(1024);
+    
+    // Get sink references
+    auto sink1 = slick_logger::Logger::instance().get_sink("sink1");
+    auto sink2 = slick_logger::Logger::instance().get_sink("sink2");
+    auto console_sink = slick_logger::Logger::instance().get_sink("console");
+    
+    // Verify sinks were found
+    ASSERT_TRUE(sink1 != nullptr);
+    ASSERT_TRUE(sink2 != nullptr);
+    ASSERT_TRUE(console_sink != nullptr);
+    
+    // Test direct logging to specific sinks
+    sink1->log_info("Info message to sink1 only");
+    sink2->log_error("Error message to sink2 only");
+    console_sink->log_warn("Warning to console only");
+    sink1->log_debug("Debug to sink1");
+    sink2->log_fatal("Fatal to sink2");
+    
+    // Test convenience methods
+    sink1->log_trace("Trace to sink1");
+    
+    slick_logger::Logger::instance().reset();
+    
+    // Verify sink1.log contains only sink1 messages
+    ASSERT_TRUE(std::filesystem::exists("named_sink1.log"));
+    std::ifstream sink1_file("named_sink1.log");
+    std::string sink1_content((std::istreambuf_iterator<char>(sink1_file)),
+                              std::istreambuf_iterator<char>());
+    sink1_file.close();
+    
+    EXPECT_TRUE(sink1_content.find("Info message to sink1 only") != std::string::npos);
+    EXPECT_TRUE(sink1_content.find("Debug to sink1") != std::string::npos);
+    EXPECT_TRUE(sink1_content.find("Trace to sink1") != std::string::npos);
+    
+    // Should NOT contain messages meant for other sinks
+    EXPECT_FALSE(sink1_content.find("Error message to sink2 only") != std::string::npos);
+    EXPECT_FALSE(sink1_content.find("Warning to console only") != std::string::npos);
+    EXPECT_FALSE(sink1_content.find("Fatal to sink2") != std::string::npos);
+    
+    // Verify sink2.log contains only sink2 messages
+    ASSERT_TRUE(std::filesystem::exists("named_sink2.log"));
+    std::ifstream sink2_file("named_sink2.log");
+    std::string sink2_content((std::istreambuf_iterator<char>(sink2_file)),
+                              std::istreambuf_iterator<char>());
+    sink2_file.close();
+    
+    EXPECT_TRUE(sink2_content.find("Error message to sink2 only") != std::string::npos);
+    EXPECT_TRUE(sink2_content.find("Fatal to sink2") != std::string::npos);
+    
+    // Should NOT contain messages meant for other sinks
+    EXPECT_FALSE(sink2_content.find("Info message to sink1 only") != std::string::npos);
+    EXPECT_FALSE(sink2_content.find("Warning to console only") != std::string::npos);
+}
+
+TEST_F(SinkTest, SinkDirectLoggingWithArgs) {
+    // Test direct sink logging with format arguments
+    slick_logger::Logger::instance().clear_sinks();
+    slick_logger::Logger::instance().add_file_sink("args_sink.log", "args_sink");
+    slick_logger::Logger::instance().init(1024);
+    
+    auto sink = slick_logger::Logger::instance().get_sink("args_sink");
+    ASSERT_TRUE(sink != nullptr);
+    
+    // Test logging with various argument types
+    sink->log_info("Processing item {} of {}", 5, 10);
+    sink->log_error("Failed with code {}: {}", 404, "Not Found");
+    sink->log_warn("Warning: {:.2f}% complete", 85.7);
+    
+    slick_logger::Logger::instance().reset();
+    
+    // Verify formatted output
+    ASSERT_TRUE(std::filesystem::exists("args_sink.log"));
+    std::ifstream file("args_sink.log");
+    std::string content((std::istreambuf_iterator<char>(file)),
+                        std::istreambuf_iterator<char>());
+    file.close();
+    
+    EXPECT_TRUE(content.find("Processing item 5 of 10") != std::string::npos);
+    EXPECT_TRUE(content.find("Failed with code 404: Not Found") != std::string::npos);
+    EXPECT_TRUE(content.find("Warning: 85.70% complete") != std::string::npos);
+}
+
+TEST_F(SinkTest, SinkDirectLoggingLevelFiltering) {
+    // Test that sink-level filtering works with direct logging
+    slick_logger::Logger::instance().clear_sinks();
+    slick_logger::Logger::instance().add_file_sink("filtered_sink.log", "filtered");
+    slick_logger::Logger::instance().init(1024);
+    
+    auto sink = slick_logger::Logger::instance().get_sink("filtered");
+    ASSERT_TRUE(sink != nullptr);
+    
+    // Set sink to only accept WARN and above
+    sink->set_min_level(slick_logger::LogLevel::L_WARN);
+    
+    // These should be filtered out
+    sink->log_trace("Should be filtered");
+    sink->log_debug("Should be filtered");
+    sink->log_info("Should be filtered");
+    
+    // These should appear
+    sink->log_warn("Warning should appear");
+    sink->log_error("Error should appear");
+    sink->log_fatal("Fatal should appear");
+    
+    slick_logger::Logger::instance().reset();
+    
+    // Verify filtering worked
+    ASSERT_TRUE(std::filesystem::exists("filtered_sink.log"));
+    std::ifstream file("filtered_sink.log");
+    std::string content((std::istreambuf_iterator<char>(file)),
+                        std::istreambuf_iterator<char>());
+    file.close();
+    
+    EXPECT_FALSE(content.find("Should be filtered") != std::string::npos);
+    EXPECT_TRUE(content.find("Warning should appear") != std::string::npos);
+    EXPECT_TRUE(content.find("Error should appear") != std::string::npos);
+    EXPECT_TRUE(content.find("Fatal should appear") != std::string::npos);
+}
+
+TEST_F(SinkTest, DedicatedSinkTest) {
+    slick_logger::Logger::instance().clear_sinks();
+    
+    // Create a dedicated file sink
+    auto dedicated_sink = std::make_shared<slick_logger::FileSink>("dedicated_sink.log");
+    dedicated_sink->set_dedicated(true);
+    slick_logger::Logger::instance().add_sink(dedicated_sink);
+    
+    // Create a regular file sink
+    slick_logger::Logger::instance().add_file_sink("regular_sink.log");
+    
+    slick_logger::Logger::instance().init(1024);
+    
+    // Log using LOG_INFO (broadcast to all non-dedicated sinks)
+    LOG_INFO("Broadcast message to regular sinks only");
+    
+    // Log directly to dedicated sink
+    dedicated_sink->log_info("Direct message to dedicated sink");
+    
+    slick_logger::Logger::instance().reset();
+    
+    // Verify dedicated sink file contains only direct messages (should not receive broadcast messages)
+    std::ifstream dedicated_file("dedicated_sink.log");
+    std::string dedicated_content((std::istreambuf_iterator<char>(dedicated_file)),
+                                 std::istreambuf_iterator<char>());
+    dedicated_file.close();
+    
+    // The dedicated file should only contain the direct message
+    EXPECT_TRUE(dedicated_content.find("Direct message to dedicated sink") != std::string::npos);
+    EXPECT_FALSE(dedicated_content.find("Broadcast message to regular sinks only") != std::string::npos);
+    
+    // Verify regular sink file contains the broadcast message
+    std::ifstream regular_file("regular_sink.log");
+    std::string regular_content((std::istreambuf_iterator<char>(regular_file)),
+                               std::istreambuf_iterator<char>());
+    regular_file.close();
+    
+    EXPECT_TRUE(regular_content.find("Broadcast message to regular sinks only") != std::string::npos);
+}
+
 int main(int argc, char **argv) {
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

@@ -182,29 +182,126 @@ int main() {
 
 int main() {
     using namespace slick_logger;
-    
+
     // Setup multiple sinks
     Logger::instance().clear_sinks();
     Logger::instance().add_console_sink(true, true);     // colors + stderr for errors
     Logger::instance().add_file_sink("app.log");         // basic file logging
-    
+
     // Configure rotation
     RotationConfig rotation;
     rotation.max_file_size = 10 * 1024 * 1024;  // 10MB
     rotation.max_files = 5;                      // keep last 5 files
     Logger::instance().add_rotating_file_sink("debug.log", rotation);
-    
+
     // Initialize with queue size
     Logger::instance().init(8192);
-    
+
     // Logs appear in console (colored) AND both files!
     LOG_INFO("Multi-sink logging is active!");
     LOG_ERROR("Errors go to stderr and files");
-    
+
     Logger::instance().shutdown();
     return 0;
 }
 ```
+
+### Logging to Specific Sinks
+
+You can log messages to specific sinks by name or get a reference to a sink. Each sink also supports its own minimum log level filtering:
+
+```cpp
+#include <slick_logger/logger.hpp>
+
+int main() {
+    using namespace slick_logger;
+
+    Logger::instance().clear_sinks();
+    Logger::instance().add_file_sink("app.log", "app_sink");
+    Logger::instance().add_file_sink("debug.log", "debug_sink");
+    Logger::instance().add_console_sink(true, false, "console");
+
+    // Set per-sink log levels (second level of filtering)
+    auto debug_sink = Logger::instance().get_sink("debug_sink");
+    if (debug_sink) {
+        debug_sink->set_min_level(LogLevel::L_DEBUG);  // Only DEBUG and above
+    }
+
+    Logger::instance().init(8192);
+
+    // Log to all sinks (default behavior) - filtered by global level
+    LOG_INFO("This goes to all sinks that accept INFO level");
+
+    // Log to specific sink by reference
+    auto app_sink = Logger::instance().get_sink("app_sink");
+    if (app_sink) {
+        app_sink->log_info("This goes only to app.log");
+        app_sink->log_error("Error in app.log only");
+    }
+
+    // Direct logging to debug sink - also filtered by sink's min level
+    if (debug_sink) {
+        debug_sink->log_debug("Debug info only in debug.log");
+        debug_sink->log_trace("This won't appear - below sink's min level");
+        debug_sink->log_warn("Warning only in debug.log");
+    }
+
+    Logger::instance().shutdown();
+    return 0;
+}
+```
+
+**Sink-Level Log Filtering:**
+- Each sink has its own `min_level` setting independent of the global logger level
+- Messages are filtered twice: first by global logger level, then by sink-specific level
+- Use `sink->set_min_level(LogLevel::L_WARN)` to control what each sink accepts
+- This allows different sinks to have different verbosity levels
+
+### Dedicated Sinks
+
+Dedicated sinks only receive messages logged directly to them, not broadcast messages from LOG_* macros:
+
+```cpp
+#include <slick_logger/logger.hpp>
+
+int main() {
+    using namespace slick_logger;
+
+    Logger::instance().clear_sinks();
+
+    // Create a regular sink (receives all messages)
+    Logger::instance().add_file_sink("regular.log", "regular");
+
+    // Create a dedicated sink (only receives direct messages)
+    auto dedicated_sink = std::make_shared<FileSink>("dedicated.log", "dedicated");
+    dedicated_sink->set_dedicated(true);  // Mark as dedicated
+    Logger::instance().add_sink(dedicated_sink);
+
+    Logger::instance().init(8192);
+
+    // This goes to regular.log only (dedicated sink ignores broadcasts)
+    LOG_INFO("Broadcast message - regular sink only");
+
+    // This goes to dedicated.log only
+    dedicated_sink->log_info("Direct message to dedicated sink");
+
+    // You can also make any sink dedicated
+    auto regular_sink = Logger::instance().get_sink("regular");
+    if (regular_sink) {
+        regular_sink->set_dedicated(true);  // Now it's dedicated too
+        regular_sink->log_warn("This goes to regular.log only");
+    }
+
+    Logger::instance().shutdown();
+    return 0;
+}
+```
+
+**Use Cases for Dedicated Sinks:**
+- **Audit Logging**: Critical security events that should only go to specific files
+- **Performance Monitoring**: Metrics that shouldn't clutter main application logs
+- **Error Isolation**: Separate error streams for different components
+- **Compliance**: Regulatory requirements for certain log types
 
 ### Advanced Configuration
 
