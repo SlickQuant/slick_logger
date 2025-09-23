@@ -1175,7 +1175,6 @@ inline void Logger::write_log_entry(const LogEntry* entry_ptr, uint32_t count) {
                 sink->write(entry);
             }
         }
-        }
     }
     
     // Flush all sinks
