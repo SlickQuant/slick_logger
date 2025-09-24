@@ -27,6 +27,7 @@
 #pragma once
 
 #include <string>
+#include <cstring>
 #include <cstdint>
 #include <thread>
 #include <atomic>
@@ -1269,8 +1270,8 @@ inline void Logger::log(LogLevel level, FormatT&& format, Args&&... args) {
 //     return std::is_same_v<decltype(x), T const (&)[sizeof(x)]> && \
 //     requires { std::type_identity_t<T[sizeof(x) + 1]>{x}; }; }())
 
-#define IS_STRING_LITERAL(x) ([&]<class T = char>() { \
-    return std::is_same_v<decltype(x), T const (&)[sizeof(x)]>; }()) 
+#define IS_STRING_LITERAL(x) ([&]<class U = char>() { \
+    return std::is_same_v<decltype(x), U const (&)[sizeof(x)]>; }()) 
 
 template<typename FormatT, typename... Args>
 inline void Logger::log_to_sink(int sink_index, LogLevel level, FormatT&& format, Args&&... args) {
