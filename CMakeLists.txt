@@ -68,11 +68,11 @@ endif()
 # Installation rules
 install(DIRECTORY include/ DESTINATION include)
 
-# Automatically run install after build in Release mode
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_custom_target(dist_slick_logger ALL
-        COMMAND ${CMAKE_COMMAND} --install ${CMAKE_BINARY_DIR} --prefix ${CMAKE_BINARY_DIR}/dist
-        COMMENT "Create distribution after release build"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}/dist/include
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/dist
+        COMMENT "Copying slick_logger headers to dist/include"
         VERBATIM
     )
 
@@ -83,6 +83,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
             COMMENT "Creating zip archive"
         )
 
-        add_dependencies(package_slick_logger dist_slick_logger dist_slick_queue)
+        add_dependencies(package_slick_logger dist_slick_logger)
     endif()
 endif()
