@@ -123,18 +123,24 @@ In-depth latency measurement with distribution analysis:
 === DETAILED LATENCY ANALYSIS ===
 
 Samples: 10000
-Mean:    342.5 ns
-Median:  298.0 ns
-P95:     567.0 ns
-P99:     845.0 ns
-P99.9:   1234.0 ns
+Mean:    58.00
+Median:  51.00
+Min:     40.00
+Max:     6415.00
+StdDev:  72.97
+P95:     80.00
+P99:     141.00
+P99.9:   312.00
 
 Latency Distribution:
-0-100ns     :    156 (1.6%)
-100-500ns   :   8234 (82.3%)
-500ns-1μs   :   1456 (14.6%)
-1-5μs       :    145 (1.5%)
->5μs        :      9 (0.1%)
+0-100ns     :   9745 (97.5%)
+100-500ns   :    253 (2.5%)
+500ns-1μs  :      0 (0.0%)
+1-5μs      :      1 (0.0%)
+5-10μs     :      1 (0.0%)
+10-50μs    :      0 (0.0%)
+50-100μs   :      0 (0.0%)
+>100μs     :      0 (0.0%)
 ```
 
 ### 3. throughput_benchmark (Scaling Analysis)
@@ -155,12 +161,23 @@ Detailed throughput testing with thread scaling analysis:
 **Sample Output:**
 ```
 === SCALING ANALYSIS ===
-Logger           Threads  Throughput    CPU %  Memory MB   Efficiency
+Logger          Threads  Throughput     CPU % Memory MB  Efficiency
 ---------------------------------------------------------------------------
-SlickLogger            1    2847291      12.3          8       100.0%
-SlickLogger            2    5234567      23.1         12        91.9%
-SlickLogger            4   10123456      43.2         18        88.9%
-SlickLogger            8   18456789      78.4         28        81.2%
+SlickLogger           1     6913828       0.0         2      100.0%
+SlickLogger           2     7800319       0.0         2       56.4%
+SlickLogger           4    12884857       0.0         0       46.6%
+SlickLogger           8    16699893       0.0         0       30.2%
+SlickLogger          16    21878777       0.0         0       19.8%
+
+spdlog_async          1     4979162       0.0         0      100.0%
+spdlog_async          2      446211       0.0         0        4.5%
+spdlog_async          4       84410       0.0         0        0.4%
+spdlog_async          8       91394       0.0         0        0.2%
+spdlog_async         16       99235       0.0         0        0.1%
+
+spdlog_sync           1     4187016       0.0         0      100.0%
+spdlog_sync           2     1871659       0.0         0       22.4%
+spdlog_sync           4     1666028       0.0         0        9.9%
 ```
 
 ### 4. memory_benchmark (Memory Analysis)
@@ -182,12 +199,16 @@ Comprehensive memory usage analysis:
 **Sample Output:**
 ```
 === MEMORY USAGE COMPARISON ===
-Logger         Queue Size   Peak MB   Bytes/Msg   Efficiency
---------------------------------------------------------------
-SlickLogger          1024        12        23.4         4274
-SlickLogger          8192        45        18.2         5495
-spdlog_async         1024        18        34.1         2932
-spdlog_async         8192        67        27.3         3663
+Logger         Queue Size   Peak MB   Bytes/Msg  Efficiency
+----------------------------------------------------------------------
+SlickLogger          1024        68     35036.0          29
+spdlog_async         1024         0       186.0        5376
+SlickLogger          8192        68      4414.0         227
+spdlog_async         8192         0         0.0         inf
+SlickLogger         65536        81       655.4        1526
+spdlog_async        65536        25       204.0        4901
+SlickLogger        262144       137       274.7        3641
+spdlog_async       262144       102       204.0        4902
 
 Efficiency = Messages per MB of memory used
 ```
