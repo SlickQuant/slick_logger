@@ -25,7 +25,8 @@ protected:
             "console_test.log", "multi_sink_test.log", "rotating_test.log",
             "rotating_test_1.log", "rotating_test_2.log", "rotating_test_3.log",
             "daily_test.log", "daily_rotation_test.log", "daily_rotation_test_2025-08-25.log",
-            "daily_size_test.log"
+            "daily_size_test.log", "args_sink.log", "dedicated_sink.log", "filtered_sink.log",
+            "named_sink1.log", "named_sink2.log", "regular_sink.log"
         };
         
         for (const auto& file : files) {
@@ -349,7 +350,7 @@ TEST_F(SinkTest, LogConfigTest) {
     config.sinks.push_back(std::make_shared<slick_logger::ConsoleSink>(false, false));
     config.sinks.push_back(std::make_shared<slick_logger::FileSink>("multi_sink_test.log"));
     config.min_level = slick_logger::LogLevel::L_WARN;
-    config.queue_size = 2048;
+    config.log_queue_size = 2048;
     
     // Redirect stdout
     std::stringstream buffer;

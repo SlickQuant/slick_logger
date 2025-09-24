@@ -452,7 +452,7 @@ public:
     void write(const slick_logger::LogEntry& entry) override {
         // Format as JSON - see examples/multi_sink_example.cpp for full implementation
         const char* level_str = /* convert level to string */;
-        std::string message = entry.formatter();
+        auto [message, _] = format_log_message(entry);
         
         if (!first_entry_) file_ << ",\n";
         first_entry_ = false;

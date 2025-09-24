@@ -56,6 +56,10 @@
 #define SLICK_LOGGER_VERSION_TWEAK @slick_logger_VERSION_TWEAK@
 #define SLICK_LOGGER_VERSION "@slick_logger_VERSION_MAJOR@.@slick_logger_VERSION_MINOR@.@slick_logger_VERSION_PATCH@.@slick_logger_VERSION_TWEAK@"
 
+#ifndef SLICK_LOGGER_MAX_ARGS
+#define SLICK_LOGGER_MAX_ARGS 20
+#endif
+
 namespace slick_logger {
 
 enum class LogLevel : uint8_t {
@@ -169,12 +173,64 @@ private:
     std::string custom_format_;
 };
 
+enum class ArgType : uint8_t {
+    BOOL,
+    CHAR,
+    U_CHAR,
+    WCHAR,
+    INT8_T,
+    INT16_T,
+    INT32_T,
+    INT64_T,
+    UINT8_T,
+    UINT16_T,
+    UINT32_T,
+    UINT64_T,
+    FLOAT,
+    DOUBLE,
+    PTR,             // pointer types
+    STRING_LITERAL,  // const char* - safe to store pointer
+    STRING_DYNAMIC   // std::string - stored in separate queue
+};
+
+#pragma pack(push, 1)
+struct StringRef {
+    const char* ptr;    // Pointer to string data
+    uint32_t length;    // String length
+};
+
+struct LogArgument {
+    ArgType type;
+    union {
+        bool b;
+        char c;
+        unsigned char uc;
+        wchar_t wc;
+        int8_t i8;
+        int16_t i16;
+        int32_t i32;
+        int64_t i64;
+        uint8_t u8;
+        uint16_t u16;
+        uint32_t u32;
+        uint64_t u64;
+        float f;
+        double d;
+        void* ptr;             // For pointer types
+        const char* literal_ptr;  // For string literals
+        StringRef dynamic_str;    // For dynamic strings
+    } value;
+};
+
 struct LogEntry {
     LogLevel level;
-    std::function<std::pair<std::string,bool>()> formatter; // Lambda that returns formatted message
+    const char* format_ptr; // Format string
     uint64_t timestamp; // nanoseconds since epoch
     int sink_index = -1; // Optional sink index, logged by that sink only
+    uint8_t arg_count = 0; // Number of arguments
+    LogArgument args[SLICK_LOGGER_MAX_ARGS];
 };
+#pragma pack(pop)
 
 class ISink {
 public:
@@ -204,31 +260,34 @@ public:
      * @param format Format string (printf-style)
      * @param args Arguments for the format string
      */
-    template<typename... Args>
-    void log(LogLevel level, const std::string& format, Args&&... args);
+    template<typename FormatT, typename... Args>
+    void log(LogLevel level, FormatT&& format, Args&&... args);
 
-    template<typename... Args>
-    void log_trace(const std::string& format, Args&&... args);
+    template<typename FormatT, typename... Args>
+    void log_trace(FormatT&& format, Args&&... args);
 
-    template<typename... Args>
-    void log_debug(const std::string& format, Args&&... args);
+    template<typename FormatT, typename... Args>
+    void log_debug(FormatT&& format, Args&&... args);
 
-    template<typename... Args>
-    void log_info(const std::string& format, Args&&... args);
+    template<typename FormatT, typename... Args>
+    void log_info(FormatT&& format, Args&&... args);
 
-    template<typename... Args>
-    void log_warn(const std::string& format, Args&&... args);
+    template<typename FormatT, typename... Args>
+    void log_warn(FormatT&& format, Args&&... args);
 
-    template<typename... Args>
-    void log_error(const std::string& format, Args&&... args);
+    template<typename FormatT, typename... Args>
+    void log_error(FormatT&& format, Args&&... args);
 
-    template<typename... Args>
-    void log_fatal(const std::string& format, Args&&... args);
+    template<typename FormatT, typename... Args>
+    void log_fatal(FormatT&& format, Args&&... args);
 
     const std::string_view name() const noexcept { return name_; }
 
     int index() const noexcept { return index_; }
     void set_index(int idx) noexcept { index_ = idx; }
+protected:
+    std::pair<std::string, bool> format_log_message(const LogEntry& entry);
+
 protected:
     std::string name_;
     int index_ = -1; // Index assigned by Logger when added
@@ -339,7 +398,8 @@ protected:
 struct LogConfig {
     std::vector<std::shared_ptr<ISink>> sinks;
     LogLevel min_level = LogLevel::L_TRACE;
-    size_t queue_size = 65536;
+    size_t log_queue_size = 65536;
+    size_t string_buffer_size = 4194304; // 4MB
 };
 
 /**
@@ -352,9 +412,10 @@ public:
     /**
      * @brief Initialize the logger with a log file path
      * @param log_file Path to the log file
-     * @param queue_size Size of the internal log queue (must be power of 2, default 65536)
+     * @param log_queue_size Size of the internal log queue (must be power of 2, default 65536)
+     * @param string_buffer_size Size of the internal string buffer (must be power of 2, default 4194304)
      */
-    void init(const std::filesystem::path& log_file, size_t queue_size = 65536);
+    void init(const std::filesystem::path& log_file, size_t log_queue_size = 65536, size_t string_buffer_size = 4194304);
 
     /**
      * @brief Initialize the logger with a configuration struct
@@ -365,8 +426,9 @@ public:
     /**
      * @brief Initialize logger with pre-added sinks - sinks should be added before calling this
      * @param queue_size Size of the internal log queue (must be power of 2, default 65536)
+     * @param string_buffer_size Size of the internal string buffer (must be power of 2, default 4194304)
      */
-    void init(size_t queue_size = 65536);
+    void init(size_t queue_size = 65536, size_t string_buffer_size = 4194304);
     
     /**
      * @brief Add a log sink
@@ -515,8 +577,8 @@ public:
      * @param format Format string (printf-style)
      * @param args Arguments for the format string
      */
-    template<typename... Args>
-    void log(LogLevel level, const std::string& format, Args&&... args);
+    template<typename FormatT, typename... Args>
+    void log(LogLevel level, FormatT&& format, Args&&... args);
 
     /**
      * @brief Log a message to a specific sink by index
@@ -525,8 +587,8 @@ public:
      * @param format Format string (printf-style)
      * @param args Arguments for the format string
      */
-    template<typename... Args>
-    void log_to_sink(int sink_index, LogLevel level, const std::string& format, Args&&... args);
+    template<typename FormatT, typename... Args>
+    void log_to_sink(int sink_index, LogLevel level, FormatT&& format, Args&&... args);
 
     /**
      * @brief Shutdown the logger and flush all pending log entries
@@ -555,8 +617,14 @@ private:
     
     // Helper function to round up to next power of 2
     static size_t round_up_to_power_of_2(size_t value) noexcept;
+    
+    template<typename T>
+    void enqueue_argument(LogArgument& arg, T&& value);
 
-    std::unique_ptr<slick::SlickQueue<LogEntry>> queue_;
+    StringRef store_string_in_queue(const std::string& str);
+
+    std::unique_ptr<slick::SlickQueue<LogEntry>> log_queue_;
+    std::unique_ptr<slick::SlickQueue<char>> string_queue_;
     std::vector<std::shared_ptr<ISink>> sinks_;
     std::filesystem::path log_file_;
     std::thread writer_thread_;
@@ -566,41 +634,166 @@ private:
     std::unordered_map<std::string_view, int> sinkname_index_map_;
 };
 
-// Implementation (header-only library)
 
-template<typename... Args>
-inline void ISink::log(LogLevel level, const std::string& format, Args&&... args) {
-    Logger::instance().log_to_sink(index_, level, format, std::forward<Args>(args)...);
+
+// ------------------------------ Implementation (header-only library) ------------------------------
+
+
+template<typename FormatT, typename... Args>
+inline void ISink::log(LogLevel level, FormatT&& format, Args&&... args) {
+    Logger::instance().log_to_sink(index_, level, std::forward<FormatT>(format), std::forward<Args>(args)...);
 }
 
-template<typename... Args>
-inline void ISink::log_trace(const std::string& format, Args&&... args) {
-    log(LogLevel::L_TRACE, format, std::forward<Args>(args)...);
+template<typename FormatT, typename... Args>
+inline void ISink::log_trace(FormatT&& format, Args&&... args) {
+    log(LogLevel::L_TRACE, std::forward<FormatT>(format), std::forward<Args>(args)...);
 }
 
-template<typename... Args>
-inline void ISink::log_debug(const std::string& format, Args&&... args) {
-    log(LogLevel::L_DEBUG, format, std::forward<Args>(args)...);
+template<typename FormatT, typename... Args>
+inline void ISink::log_debug(FormatT&& format, Args&&... args) {
+    log(LogLevel::L_DEBUG, std::forward<FormatT>(format), std::forward<Args>(args)...);
 }
 
-template<typename... Args>
-inline void ISink::log_info(const std::string& format, Args&&... args) {
-    log(LogLevel::L_INFO, format, std::forward<Args>(args)...);
+template<typename FormatT, typename... Args>
+inline void ISink::log_info(FormatT&& format, Args&&... args) {
+    log(LogLevel::L_INFO, std::forward<FormatT>(format), std::forward<Args>(args)...);
 }
 
-template<typename... Args>
-inline void ISink::log_warn(const std::string& format, Args&&... args) {
-    log(LogLevel::L_WARN, format, std::forward<Args>(args)...);
+template<typename FormatT, typename... Args>
+inline void ISink::log_warn(FormatT&& format, Args&&... args) {
+    log(LogLevel::L_WARN, std::forward<FormatT>(format), std::forward<Args>(args)...);
 }
 
-template<typename... Args>
-inline void ISink::log_error(const std::string& format, Args&&... args) {
-    log(LogLevel::L_ERROR, format, std::forward<Args>(args)...);
+template<typename FormatT, typename... Args>
+inline void ISink::log_error(FormatT&& format, Args&&... args) {
+    log(LogLevel::L_ERROR, std::forward<FormatT>(format), std::forward<Args>(args)...);
 }
 
-template<typename... Args>
-inline void ISink::log_fatal(const std::string& format, Args&&... args) {
-    log(LogLevel::L_FATAL, format, std::forward<Args>(args)...);
+template<typename FormatT, typename... Args>
+inline void ISink::log_fatal(FormatT&& format, Args&&... args) {
+    log(LogLevel::L_FATAL, std::forward<FormatT>(format), std::forward<Args>(args)...);
+}
+
+inline std::pair<std::string, bool> ISink::format_log_message(const LogEntry& entry) {
+    if (entry.arg_count == 0) {
+        return std::make_pair(entry.format_ptr, true);
+    }
+
+    // Since std::make_format_args doesn't work with custom types in MSVC,
+    // we'll use a manual implementation that preserves std::format functionality
+    // by manually parsing format specifiers and applying them to each argument
+    try {
+        std::string format_str = entry.format_ptr;
+        std::string result;
+        result.reserve(format_str.length() + 256); // Reserve some space for formatting
+
+        size_t pos = 0;
+        uint8_t arg_index = 0;
+
+        while (pos < format_str.length()) {
+            size_t brace_start = format_str.find('{', pos);
+            if (brace_start == std::string::npos) {
+                // No more format specifiers, copy rest of string
+                result += format_str.substr(pos);
+                break;
+            }
+
+            // Copy everything before the brace
+            result += format_str.substr(pos, brace_start - pos);
+
+            // Find the closing brace
+            size_t brace_end = format_str.find('}', brace_start);
+            if (brace_end == std::string::npos) {
+                // Malformed format string
+                result += format_str.substr(brace_start);
+                break;
+            }
+
+            if (arg_index >= entry.arg_count) {
+                // Not enough arguments
+                result += "<MISSING_ARG>";
+                pos = brace_end + 1;
+                continue;
+            }
+
+            // Extract format spec (everything between { and })
+            std::string format_spec = format_str.substr(brace_start, brace_end - brace_start + 1);
+
+            // Format the argument using std::format with the specific format spec
+            const auto& arg = entry.args[arg_index];
+            std::string formatted_arg;
+
+            switch (arg.type) {
+                case ArgType::BOOL:
+                    formatted_arg = std::vformat(format_spec, std::make_format_args(arg.value.b));
+                    break;
+                case ArgType::CHAR:
+                    formatted_arg = std::vformat(format_spec, std::make_format_args(arg.value.c));
+                    break;
+                case ArgType::U_CHAR:
+                    formatted_arg = std::vformat(format_spec, std::make_format_args(arg.value.uc));
+                    break;
+                // case ArgType::WCHAR:
+                //     formatted_arg = std::vformat(format_spec, std::make_format_args(arg.value.wc));
+                //     break;
+                case ArgType::INT8_T:
+                    formatted_arg = std::vformat(format_spec, std::make_format_args(arg.value.i8));
+                    break;
+                case ArgType::UINT8_T:
+                    formatted_arg = std::vformat(format_spec, std::make_format_args(arg.value.u8));
+                    break;
+                case ArgType::INT16_T:
+                    formatted_arg = std::vformat(format_spec, std::make_format_args(arg.value.i16));
+                    break;
+                case ArgType::UINT16_T:
+                    formatted_arg = std::vformat(format_spec, std::make_format_args(arg.value.u16));
+                    break;
+                case ArgType::INT32_T:
+                    formatted_arg = std::vformat(format_spec, std::make_format_args(arg.value.i32));
+                    break;
+                case ArgType::UINT32_T:
+                    formatted_arg = std::vformat(format_spec, std::make_format_args(arg.value.u32));
+                    break;
+                case ArgType::INT64_T:
+                    formatted_arg = std::vformat(format_spec, std::make_format_args(arg.value.i64));
+                    break;
+                case ArgType::UINT64_T:
+                    formatted_arg = std::vformat(format_spec, std::make_format_args(arg.value.u64));
+                    break;
+                case ArgType::FLOAT:
+                    formatted_arg = std::vformat(format_spec, std::make_format_args(arg.value.f));
+                    break;
+                case ArgType::DOUBLE:
+                    formatted_arg = std::vformat(format_spec, std::make_format_args(arg.value.d));
+                    break;
+                case ArgType::PTR:
+                    formatted_arg = std::vformat(format_spec, std::make_format_args(arg.value.ptr));
+                    break;
+                case ArgType::STRING_LITERAL:
+                    formatted_arg = std::vformat(format_spec, std::make_format_args(arg.value.literal_ptr));
+                    break;
+                case ArgType::STRING_DYNAMIC: {
+                    auto sv = std::string_view(arg.value.dynamic_str.ptr, arg.value.dynamic_str.length);
+                    formatted_arg = std::vformat(format_spec, std::make_format_args(sv));
+                    break;
+                }
+                default:
+                    formatted_arg = "<UNKNOWN>";
+                    break;
+            }
+
+            result += formatted_arg;
+            pos = brace_end + 1;
+            arg_index++;
+        }
+
+        return std::make_pair(result, true);
+    } catch (const std::format_error& e) {
+        // Return error message if formatting fails
+        return std::make_pair(std::string("[FORMAT_ERROR: ") + e.what() +"]", false);
+    } catch (...) {
+        return std::make_pair("[FORMAT_ERROR: Unknown format error]", false);
+    }
 }
 
 inline ConsoleSink::ConsoleSink(bool use_colors, bool use_stderr_for_errors,
@@ -633,7 +826,7 @@ inline void ConsoleSink::flush() {
 inline std::string ConsoleSink::format_log_entry(const LogEntry& entry) {
     std::string level_str = to_string(entry.level);
     std::string timestamp = timestamp_formatter_.format_timestamp(entry.timestamp);
-    auto [message, good] = entry.formatter();
+    auto [message, good] = format_log_message(entry);
     if (!good) [[unlikely]] {
         level_str = "ERROR";
     }
@@ -695,7 +888,7 @@ inline void FileSink::flush() {
 inline std::string FileSink::format_log_entry(const LogEntry& entry) {
     std::string level_str = to_string(entry.level);
     std::string timestamp = timestamp_formatter_.format_timestamp(entry.timestamp);
-    auto [message, good] = entry.formatter();
+    auto [message, good] = format_log_message(entry);
     if (!good) [[unlikely]] {
         level_str = "ERROR";
     }
@@ -900,14 +1093,16 @@ inline Logger& Logger::instance() {
     return instance;
 }
 
-inline void Logger::init(const std::filesystem::path& log_file, size_t queue_size) {
+inline void Logger::init(const std::filesystem::path& log_file, size_t log_queue_size, size_t string_buffer_size) {
     shutdown(); // make sure the logger is stopped
     add_sink(std::make_shared<FileSink>(log_file));
     
     // Ensure queue_size is power of 2
-    queue_size = round_up_to_power_of_2(queue_size);
+    log_queue_size = round_up_to_power_of_2(log_queue_size);
+    string_buffer_size = round_up_to_power_of_2(string_buffer_size);
 
-    queue_ = std::make_unique<slick::SlickQueue<LogEntry>>(static_cast<uint32_t>(queue_size));
+    log_queue_ = std::make_unique<slick::SlickQueue<LogEntry>>(static_cast<uint32_t>(log_queue_size));
+    string_queue_ = std::make_unique<slick::SlickQueue<char>>(static_cast<uint32_t>(string_buffer_size));
     log_file_ = log_file;
     start();
 }
@@ -916,7 +1111,7 @@ inline void Logger::start() {
     running_ = true;
     
     // Initialize read_index_ before starting the thread
-    read_index_ = queue_->initial_reading_index();
+    read_index_ = log_queue_->initial_reading_index();
     
     writer_thread_ = std::thread([this]() { writer_thread_func(); });
     
@@ -939,9 +1134,11 @@ inline void Logger::init(const LogConfig& config) {
     set_level(config.min_level);
     
     // Ensure queue_size is power of 2
-    size_t queue_size = round_up_to_power_of_2(config.queue_size);
+    size_t log_queue_size = round_up_to_power_of_2(config.log_queue_size);
+    size_t string_buffer_size = round_up_to_power_of_2(config.string_buffer_size);
 
-    queue_ = std::make_unique<slick::SlickQueue<LogEntry>>(static_cast<uint32_t>(queue_size));
+    log_queue_ = std::make_unique<slick::SlickQueue<LogEntry>>(static_cast<uint32_t>(log_queue_size));
+    string_queue_ = std::make_unique<slick::SlickQueue<char>>(static_cast<uint32_t>(string_buffer_size));
     start();
 }
 
@@ -979,7 +1176,7 @@ inline std::shared_ptr<ISink> Logger::get_sink(std::string_view name) const noex
     return nullptr;  
 }
 
-inline void Logger::init(size_t queue_size) {
+inline void Logger::init(size_t queue_size, size_t string_buffer_size) {
     shutdown(false); // make sure the logger is stopped
 
     if (sinks_.empty()) {
@@ -989,8 +1186,10 @@ inline void Logger::init(size_t queue_size) {
     // Initialize logger with pre-set sinks - sinks should be added before calling this
     // Ensure queue_size is power of 2
     queue_size = round_up_to_power_of_2(queue_size);
+    string_buffer_size = round_up_to_power_of_2(string_buffer_size);
 
-    queue_ = std::make_unique<slick::SlickQueue<LogEntry>>(static_cast<uint32_t>(queue_size));
+    log_queue_ = std::make_unique<slick::SlickQueue<LogEntry>>(static_cast<uint32_t>(queue_size));
+    string_queue_ = std::make_unique<slick::SlickQueue<char>>(static_cast<uint32_t>(string_buffer_size));
     start();
 }
 
@@ -1061,14 +1260,21 @@ constexpr auto make_owned_arg(T&& arg) {
     }
 }
 
-template<typename... Args>
-inline void Logger::log(LogLevel level, const std::string& format, Args&&... args) {
-    log_to_sink(-1, level, format, std::forward<Args>(args)...);
+template<typename FormatT, typename... Args>
+inline void Logger::log(LogLevel level, FormatT&& format, Args&&... args) {
+    log_to_sink(-1, level, std::forward<FormatT>(format), std::forward<Args>(args)...);
 }
 
-template<typename... Args>
-inline void Logger::log_to_sink(int sink_index, LogLevel level, const std::string& format, Args&&... args) {
-    if (!running_.load(std::memory_order_relaxed) || !queue_ || level < log_level_.load(std::memory_order_relaxed))
+// #define IS_STRING_LITERAL(x) ([&]<class T = char>() { \
+//     return std::is_same_v<decltype(x), T const (&)[sizeof(x)]> && \
+//     requires { std::type_identity_t<T[sizeof(x) + 1]>{x}; }; }())
+
+#define IS_STRING_LITERAL(x) ([&]<class T = char>() { \
+    return std::is_same_v<decltype(x), T const (&)[sizeof(x)]>; }()) 
+
+template<typename FormatT, typename... Args>
+inline void Logger::log_to_sink(int sink_index, LogLevel level, FormatT&& format, Args&&... args) {
+    if (!running_.load(std::memory_order_relaxed) || !log_queue_ || level < log_level_.load(std::memory_order_relaxed))
     {
         return;
     }
@@ -1076,34 +1282,161 @@ inline void Logger::log_to_sink(int sink_index, LogLevel level, const std::strin
     auto now = std::chrono::system_clock::now();
     auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
 
-    // Create lambda that captures format and arguments, formats when called
-    // Convert all arguments to owned types to prevent dangling pointers
-    auto formatter = [format, args_tuple = std::make_tuple(make_owned_arg(std::forward<Args>(args))...)]() mutable -> std::pair<std::string, bool> {
-        try {
-            if constexpr (sizeof...(Args) == 0) {
-                // No arguments provided, return format string as-is to avoid format parsing errors
-                return std::make_pair(format, true);
-            } else {
-                return std::make_pair(std::apply([&format](auto&&... unpacked_args) -> std::string {
-                    return std::vformat(format, std::make_format_args(std::forward<decltype(unpacked_args)>(unpacked_args)...));
-                }, args_tuple), true);
-            }
-        } catch (const std::exception& e) {
-            // Return original format string with error info if formatting fails
-            return std::make_pair(format + " [FORMAT_ERROR: " + e.what() + "]", false);
-        } catch (...) {
-            // Handle any other exceptions
-            return std::make_pair(format + " [FORMAT_ERROR: Unknown exception]", false);
-        }
-    };
+    LogEntry entry;
+    entry.level = level;
+    entry.timestamp = ns;
+    entry.sink_index = sink_index;
+    if constexpr (IS_STRING_LITERAL(format)) {
+        entry.format_ptr = format;  // String literal - safe to store pointer
+        entry.arg_count = sizeof...(args);
 
-    uint64_t index = queue_->reserve();
-    auto &entry_ref = *(*queue_)[index];
-    entry_ref.level = level;
-    entry_ref.formatter = std::move(formatter);
-    entry_ref.timestamp = static_cast<uint64_t>(ns);
-    entry_ref.sink_index = sink_index;
-    queue_->publish(index);
+        // push arguments
+        size_t arg_idx = 0;
+        static_assert(sizeof...(args) <= SLICK_LOGGER_MAX_ARGS, "Too many log arguments");
+        (enqueue_argument(entry.args[arg_idx++], std::forward<Args>(args)), ...);
+    } 
+    else {
+        // Store dynamic string in string queue
+        static_assert(sizeof...(args) == 0, "Dynamic format strings are only supported when there are no arguments, to avoid dangling pointers.");
+        entry.format_ptr = "{}";
+        entry.arg_count = 0;
+        enqueue_argument(entry.args[0], format);
+    }
+
+
+
+    uint64_t index = log_queue_->reserve();
+    *(*log_queue_)[index] = std::move(entry);
+    log_queue_->publish(index);
+}
+
+template<typename T>
+inline void Logger::enqueue_argument(LogArgument& arg, T&& value) {
+    using DecayedT = std::decay_t<T>;
+
+    if constexpr (std::is_same_v<DecayedT, bool>) {
+        arg.type = ArgType::BOOL;
+        arg.value.b = value;
+    }
+    else if constexpr (std::is_same_v<DecayedT, char>) {
+        arg.type = ArgType::CHAR;
+        arg.value.c = value;
+    }
+    else if constexpr (std::is_same_v<DecayedT, unsigned char>) {
+        arg.type = ArgType::U_CHAR;
+        arg.value.uc = value;
+    }
+    else if constexpr (std::is_same_v<DecayedT, wchar_t>) {
+        arg.type = ArgType::WCHAR;
+        arg.value.wc = value;
+    }
+    else if constexpr (std::is_integral_v<DecayedT>) {
+        switch (sizeof(DecayedT)) {
+        case sizeof(int8_t):
+            if (std::is_signed_v<DecayedT>) {
+                arg.type = ArgType::INT8_T;
+                arg.value.i8 = static_cast<int8_t>(value);
+            } else {
+                arg.type = ArgType::UINT8_T;
+                arg.value.u8 = static_cast<uint8_t>(value);
+            }
+            return;
+        case sizeof(int16_t):
+            if (std::is_signed_v<DecayedT>) {
+                arg.type = ArgType::INT16_T;
+                arg.value.i16 = static_cast<int16_t>(value);
+            } else {
+                arg.type = ArgType::UINT16_T;
+                arg.value.u16 = static_cast<uint16_t>(value);
+            }
+            return;
+        case sizeof(int32_t):
+            if (std::is_signed_v<DecayedT>) {
+                arg.type = ArgType::INT32_T;
+                arg.value.i32 = static_cast<int32_t>(value);
+            } else {
+                arg.type = ArgType::UINT32_T;
+                arg.value.u32 = static_cast<uint32_t>(value);
+            }
+            return;
+        case sizeof(int64_t):
+            if (std::is_signed_v<DecayedT>) {
+                arg.type = ArgType::INT64_T;
+                arg.value.i64 = static_cast<int64_t>(value);
+            } else {
+                arg.type = ArgType::UINT64_T;
+                arg.value.u64 = static_cast<uint64_t>(value);
+            }
+            return;
+        default:
+            // larger integral types? - convert to string
+            arg.type = ArgType::STRING_DYNAMIC;
+            arg.value.dynamic_str = store_string_in_queue(std::to_string(value));
+            return;
+        }
+    }
+    else if constexpr (std::is_floating_point_v<DecayedT>) {
+        switch (sizeof(DecayedT)) {
+        case sizeof(float):
+            arg.type = ArgType::FLOAT;
+            arg.value.f = static_cast<float>(value);
+            return;
+        case sizeof(double):    
+            arg.type = ArgType::DOUBLE;
+            arg.value.d = static_cast<double>(value);
+            return;
+        }
+    }
+    else if constexpr (std::is_enum_v<DecayedT>) {
+        enqueue_argument(arg, static_cast<std::underlying_type_t<DecayedT>>(value));
+    }
+    else if constexpr (std::is_same_v<DecayedT, std::chrono::system_clock::time_point>) {
+        arg.type = ArgType::INT64_T;
+        arg.value.i64 = std::chrono::duration_cast<std::chrono::nanoseconds>(value.time_since_epoch()).count();
+    }
+    else if constexpr (IS_STRING_LITERAL(arg)) {
+        arg.type = ArgType::STRING_LITERAL;
+        arg.value.literal_ptr = value;
+    }
+    else if constexpr (std::is_same_v<DecayedT, const char*>) {
+        // Assume string literal - store pointer directly
+        arg.type = ArgType::STRING_DYNAMIC;
+        arg.value.dynamic_str = store_string_in_queue(value);
+    }
+    else if constexpr (std::is_same_v<DecayedT, std::string>) {
+        // Dynamic string - copy to string queue
+        arg.type = ArgType::STRING_DYNAMIC;
+        arg.value.dynamic_str = store_string_in_queue(value);
+    }
+    else if constexpr (std::is_same_v<DecayedT, std::string_view>) {
+        // Could be either - need to determine at runtime or copy to be safe       
+        arg.type = ArgType::STRING_DYNAMIC;
+        arg.value.dynamic_str = store_string_in_queue(std::string{value});
+    }
+    else if constexpr (std::is_pointer_v<DecayedT>) {
+        arg.type = ArgType::PTR;
+        arg.value.ptr = static_cast<const void*>(value);
+    }
+    else {
+        // custom type - convert to string
+        arg.type = ArgType::STRING_DYNAMIC;
+        arg.value.dynamic_str = store_string_in_queue(std::to_string(value));
+    }
+}
+
+inline StringRef Logger::store_string_in_queue(const std::string& str) {
+    uint32_t length = str.length();
+    auto len = length + 1; // +1 for null terminator
+
+    // Reserve space in string queue
+    uint64_t start_index = string_queue_->reserve(len);
+    // Copy string data
+    char* dest = (*string_queue_)[start_index];
+    std::memcpy(dest, str.c_str(), len);
+
+    // Publish the string data
+    string_queue_->publish(start_index, len);
+    return StringRef{dest, length};
 }
 
 inline void Logger::shutdown(bool clear_sinks) {
@@ -1118,7 +1451,8 @@ inline void Logger::shutdown(bool clear_sinks) {
         // Clear sinks to release file handles and other resources
         sinks_.clear();
     }
-    queue_.reset();
+    log_queue_.reset();
+    string_queue_.reset();
 }
 
 inline Logger::~Logger() {
@@ -1135,7 +1469,7 @@ inline void Logger::reset() {
 
 inline void Logger::writer_thread_func() {
     while (running_.load(std::memory_order_relaxed)) {
-        auto [entry_ptr, count] = queue_->read(read_index_);
+        auto [entry_ptr, count] = log_queue_->read(read_index_);
         if (entry_ptr) {
             write_log_entry(entry_ptr, count);
         } else {
@@ -1145,7 +1479,7 @@ inline void Logger::writer_thread_func() {
     
     // Drain remaining messages after running_ becomes false
     while (true) {
-        auto [entry_ptr, count] = queue_->read(read_index_);
+        auto [entry_ptr, count] = log_queue_->read(read_index_);
         if (!entry_ptr || count == 0) {
             break;
         }

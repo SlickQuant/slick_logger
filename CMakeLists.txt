@@ -47,7 +47,7 @@ if (MSVC)
     add_definitions(-D_WIN32_WINNT=0x0A00)
     set(CMAKE_SUPPRESS_REGENERATION true)   # supress zero_check
 else()
-    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -flto")
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -flto=auto")
     set(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -fsanitize=address,undefined -fno-omit-frame-pointer")
     set(CMAKE_EXE_LINKER_FLAGS_DEBUG "-fsanitize=address,undefined")
 endif()

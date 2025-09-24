@@ -93,7 +93,7 @@ int main() {
     Logger::instance().add_file_sink("default_timestamps.log");  // Default microseconds
     Logger::instance().add_file_sink("millisecond_timestamps.log", TimestampFormatter::Format::WITH_MILLISECONDS);
     Logger::instance().add_file_sink("iso8601_timestamps.log", TimestampFormatter::Format::ISO8601);
-    Logger::instance().add_file_sink("custom_timestamps.log", "%Y%m%d_%H%M%S");  // Custom: YYYYMMDD_HHMMSS
+    Logger::instance().add_file_sink("custom_timestamps.log", "%Y%m%d_%H%M%S", "");  // Custom: YYYYMMDD_HHMMSS
     Logger::instance().init(8192);
     
     LOG_INFO("This message will appear in all log files with different timestamp formats");

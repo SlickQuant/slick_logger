@@ -169,7 +169,7 @@ TEST_F(SlickLoggerTest, FormatErrorHandling) {
     // Check that malformed strings are logged with error info
     EXPECT_TRUE(file_contents.find("Unmatched opening brace: {incomplete") != std::string::npos);
     EXPECT_TRUE(file_contents.find("[FORMAT_ERROR:") != std::string::npos);
-    EXPECT_TRUE(file_contents.find("Wrong argument count: {} {} {}") != std::string::npos);
+    EXPECT_TRUE(file_contents.find("Wrong argument count: 42 <MISSING_ARG> <MISSING_ARG>") != std::string::npos);
     
     // Check that valid formats still work correctly
     EXPECT_TRUE(file_contents.find("Valid format: works") != std::string::npos);
@@ -217,7 +217,7 @@ TEST_F(SlickLoggerTest, MixedValidAndInvalidFormats) {
     LOG_INFO("Invalid: Too many placeholders {} {} {}", "only_one");  // 3 placeholders, 1 argument
     LOG_INFO("JSON: {\"status\":\"ok\",\"code\":200}");
     LOG_INFO("Valid again: Temperature is {:.1f}°C", 23.5);
-    LOG_INFO("Broken: {invalid} format {");
+    LOG_INFO("Broken: {invalid} format {"); // just a string literal
     
     slick_logger::Logger::instance().shutdown();
     
@@ -239,7 +239,7 @@ TEST_F(SlickLoggerTest, MixedValidAndInvalidFormats) {
     EXPECT_TRUE(file_contents.find("JSON: {\"status\":\"ok\",\"code\":200}") != std::string::npos);
     
     // Check error handling for invalid formats
-    EXPECT_TRUE(file_contents.find("[FORMAT_ERROR:") != std::string::npos);
+    EXPECT_TRUE(file_contents.find("<MISSING_ARG> <MISSING_ARG>") != std::string::npos);
 }
 
 TEST_F(SlickLoggerTest, ConstCharArrayLogging) {

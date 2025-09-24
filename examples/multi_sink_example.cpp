@@ -37,7 +37,7 @@ public:
         std::strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%S", &tm);
         
         // Get formatted message
-        auto [message, good] = entry.formatter();
+        auto [message, good] = format_log_message(entry);
         if (!good) {
             level_str = "ERROR";
         }
@@ -82,7 +82,7 @@ public:
         char time_str[20];
         std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm);
         
-        auto [message, good] = entry.formatter();
+        auto [message, good] = format_log_message(entry);
         if (!good) {
             level_str = "ERROR";
         }
@@ -226,7 +226,7 @@ int main() {
     complex_config.sinks.push_back(std::make_shared<RotatingFileSink>("errors.log", error_rotation));
     
     complex_config.min_level = LogLevel::L_TRACE;
-    complex_config.queue_size = 8192;
+    complex_config.log_queue_size = 8192;
     
     Logger::instance().init(complex_config);
     
