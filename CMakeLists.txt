@@ -42,6 +42,8 @@ target_include_directories(slick_logger INTERFACE
 )
 target_link_libraries(slick_logger INTERFACE slick_queue)
 
+message(STATUS "Slick Queue: ${slick_queue_SOURCE_DIR}")
+
 if (MSVC)
     set(CMAKE_CXX_FLAGS_RELEASE "-O2")
     add_definitions(-D_WIN32_WINNT=0x0A00)
@@ -67,6 +69,8 @@ endif()
 
 # Installation rules
 install(DIRECTORY include/ DESTINATION include)
+
+message(STATUS "slick_logger: ${BUILD_VERSION}")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_custom_target(dist_slick_logger ALL
