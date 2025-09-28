@@ -1,3 +1,12 @@
+# v1.0.0.0 - 09-27-2025
+- Major performance optimization: avoid dynamic allocations in logging path
+  - Refactor logging engine to use pre-allocated argument storage
+  - Add separate string queue for efficient dynamic string handling
+  - Introduce typed argument system with improved format string detection
+  - Add SLICK_LOGGER_MAX_ARGS define (default: 20) for argument limit
+- Fix Linux build issues
+- Update benchmark
+
 # v0.2.0.0 - 09-23-2025
 - Add dedicated sink functionality: sinks with dedicated flag set to true only receive messages logged directly to them, not broadcast messages from LOG_* macros
 - Improve sink-level log filtering documentation and examples
