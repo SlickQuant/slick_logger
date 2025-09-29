@@ -16,6 +16,7 @@ protected:
         std::filesystem::remove("test_no_args.log");
         std::filesystem::remove("test_mixed.log");
         std::filesystem::remove("test_char_array.log");
+        std::filesystem::remove("test_single_string.log");
     }
 };
 
@@ -276,6 +277,44 @@ TEST_F(SlickLoggerTest, ConstCharArrayLogging) {
     EXPECT_TRUE(file_contents.find("Const char array message") != std::string::npos);
     EXPECT_TRUE(file_contents.find("string message") != std::string::npos);
     EXPECT_TRUE(file_contents.find("Const char array string message") != std::string::npos);
+}
+
+TEST_F(SlickLoggerTest, SingleStringLogging) {
+    std::filesystem::remove("test_single_string.log");
+    
+    slick_logger::Logger::instance().init("test_single_string.log", 1024);
+    
+    LOG_INFO("string literal");
+    {
+        const char* msg = "Const char array message";
+        LOG_INFO(msg);
+    }
+    {
+        std::string msg = "string message";
+        LOG_INFO(msg);
+    }
+    {
+        std::string_view msg{"string_view message"};
+        LOG_INFO(msg);
+    }
+    
+    slick_logger::Logger::instance().shutdown();
+    
+    ASSERT_TRUE(std::filesystem::exists("test_single_string.log"));
+    
+    std::ifstream log_file("test_single_string.log");
+    std::string file_contents;
+    std::string line;
+    std::getline(log_file, line);   // first line is the logger's version
+    while (std::getline(log_file, line)) {
+        file_contents += line + "\n";
+    }
+    
+    // Check valid formats work
+    EXPECT_TRUE(file_contents.find("string literal") != std::string::npos);
+    EXPECT_TRUE(file_contents.find("Const char array message") != std::string::npos);
+    EXPECT_TRUE(file_contents.find("string message") != std::string::npos);
+    EXPECT_TRUE(file_contents.find("string_view message") != std::string::npos);
 }
 
 int main(int argc, char **argv) {

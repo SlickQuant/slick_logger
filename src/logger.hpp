@@ -1300,7 +1300,7 @@ inline void Logger::log_to_sink(int sink_index, LogLevel level, FormatT&& format
         // Store dynamic string in string queue
         static_assert(sizeof...(args) == 0, "Dynamic format strings are only supported when there are no arguments, to avoid dangling pointers.");
         entry.format_ptr = "{}";
-        entry.arg_count = 0;
+        entry.arg_count = 1;
         enqueue_argument(entry.args[0], format);
     }
 

@@ -56,8 +56,8 @@
 #define SLICK_LOGGER_VERSION_MAJOR 1
 #define SLICK_LOGGER_VERSION_MINOR 0
 #define SLICK_LOGGER_VERSION_PATCH 0
-#define SLICK_LOGGER_VERSION_TWEAK 0
-#define SLICK_LOGGER_VERSION "1.0.0.0"
+#define SLICK_LOGGER_VERSION_TWEAK 1
+#define SLICK_LOGGER_VERSION "1.0.0.1"
 
 #ifndef SLICK_LOGGER_MAX_ARGS
 #define SLICK_LOGGER_MAX_ARGS 20
@@ -1302,7 +1302,7 @@ inline void Logger::log_to_sink(int sink_index, LogLevel level, FormatT&& format
         // Store dynamic string in string queue
         static_assert(sizeof...(args) == 0, "Dynamic format strings are only supported when there are no arguments, to avoid dangling pointers.");
         entry.format_ptr = "{}";
-        entry.arg_count = 0;
+        entry.arg_count = 1;
         enqueue_argument(entry.args[0], format);
     }
 
