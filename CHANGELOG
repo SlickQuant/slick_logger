@@ -1,3 +1,6 @@
+# v1.0.0.1 - 09-29-2025
+- fix arg_count for dynamic format strings
+
 # v1.0.0.0 - 09-27-2025
 - Major performance optimization: avoid dynamic allocations in logging path
   - Refactor logging engine to use pre-allocated argument storage
