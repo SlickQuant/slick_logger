@@ -1,3 +1,6 @@
+# v1.0.0.2 - 09-29-2025
+- upgrade slick_queue to v1.0.2.0 
+
 # v1.0.0.1 - 09-29-2025
 - fix arg_count for dynamic format strings
 
