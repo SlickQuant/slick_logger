@@ -56,8 +56,8 @@
 #define SLICK_LOGGER_VERSION_MAJOR 1
 #define SLICK_LOGGER_VERSION_MINOR 0
 #define SLICK_LOGGER_VERSION_PATCH 0
-#define SLICK_LOGGER_VERSION_TWEAK 2
-#define SLICK_LOGGER_VERSION "1.0.0.2"
+#define SLICK_LOGGER_VERSION_TWEAK 3
+#define SLICK_LOGGER_VERSION "1.0.0.3"
 
 #ifndef SLICK_LOGGER_MAX_ARGS
 #define SLICK_LOGGER_MAX_ARGS 20
@@ -624,7 +624,7 @@ private:
     template<typename T>
     void enqueue_argument(LogArgument& arg, T&& value);
 
-    StringRef store_string_in_queue(const std::string& str);
+    StringRef store_string_in_queue(std::string_view str);
 
     std::unique_ptr<slick::SlickQueue<LogEntry>> log_queue_;
     std::unique_ptr<slick::SlickQueue<char>> string_queue_;
@@ -1414,7 +1414,7 @@ inline void Logger::enqueue_argument(LogArgument& arg, T&& value) {
     else if constexpr (std::is_same_v<DecayedT, std::string_view>) {
         // Could be either - need to determine at runtime or copy to be safe       
         arg.type = ArgType::STRING_DYNAMIC;
-        arg.value.dynamic_str = store_string_in_queue(std::string{value});
+        arg.value.dynamic_str = store_string_in_queue(value);
     }
     else if constexpr (std::is_pointer_v<DecayedT>) {
         arg.type = ArgType::PTR;
@@ -1427,7 +1427,7 @@ inline void Logger::enqueue_argument(LogArgument& arg, T&& value) {
     }
 }
 
-inline StringRef Logger::store_string_in_queue(const std::string& str) {
+inline StringRef Logger::store_string_in_queue(std::string_view str) {
     uint32_t length = str.length();
     auto len = length + 1; // +1 for null terminator
 
@@ -1435,7 +1435,7 @@ inline StringRef Logger::store_string_in_queue(const std::string& str) {
     uint64_t start_index = string_queue_->reserve(len);
     // Copy string data
     char* dest = (*string_queue_)[start_index];
-    std::memcpy(dest, str.c_str(), len);
+    std::memcpy(dest, str.data(), len);
 
     // Publish the string data
     string_queue_->publish(start_index, len);
