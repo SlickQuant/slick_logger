@@ -1,3 +1,16 @@
+# v1.0.0.4 - 10-02-2025
+- Fix critical DailyFileSink bug: prevent file overwrites on program restart
+  - Remove current_day_index_ member to eliminate restart index reset issue
+  - Add rotate_files_for_date() helper function to properly rotate existing files
+  - Implement startup rotation check in constructor to handle old log files
+  - Fix max_files enforcement to prevent creating files beyond the limit
+  - Support max_file_size=0 to disable size-based rotation
+  - Proper handling of dated files as index 0 with indexed files starting from _001
+- Add comprehensive unit tests for DailyFileSink rotation scenarios
+  - Test size rotation with max_files limit enforcement
+  - Test restart scenarios with old files from previous days
+  - Test restart with existing rotated files to prevent overwrites
+
 # v1.0.0.3 - 10-01-2025
 - upgrade slick_queue to v1.0.2.1
 

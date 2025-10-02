@@ -381,6 +381,8 @@ public:
 protected:
     void check_rotation();
     virtual std::string get_date_string();
+    void rotate_daily_files();
+    void rotate_files_for_date(const std::string& date);
 
     std::filesystem::path get_daily_filename();
     std::filesystem::path get_dated_filename(const std::string& date);
@@ -390,7 +392,6 @@ protected:
     std::filesystem::path base_path_;
     std::string current_date_;
     size_t current_file_size_;
-    size_t current_day_index_;
 };
 
 /**
@@ -960,11 +961,58 @@ inline std::filesystem::path RotatingFileSink::get_rotated_filename(size_t index
 inline DailyFileSink::DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
                                     TimestampFormatter::Format timestamp_format, std::string&& name)
     : FileSink(base_path, timestamp_format, std::move(name)), config_(config), base_path_(base_path),
-      current_file_size_(0), current_day_index_(0) {
+      current_file_size_(0) {
     current_date_ = get_date_string();
-    // Initialize file size if file already exists
+
+    // Check if file already exists and is from a previous day
     if (std::filesystem::exists(base_path_)) {
-        current_file_size_ = std::filesystem::file_size(base_path_);
+        auto last_write_time = std::filesystem::last_write_time(base_path_);
+        auto last_write_time_t = std::chrono::system_clock::to_time_t(
+            std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+                last_write_time - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now()
+            )
+        );
+        std::tm* tm_ptr = std::localtime(&last_write_time_t);
+        if (tm_ptr) {
+            char date_str[11];
+            std::strftime(date_str, sizeof(date_str), "%Y-%m-%d", tm_ptr);
+            std::string file_date = std::string(date_str);
+
+            // If the existing file is from a previous day, rotate it
+            if (file_date != current_date_) {
+                file_stream_.close();
+
+                // Check if dated file already exists, if so rotate all files for that date
+                std::filesystem::path dated_file = get_dated_filename(file_date);
+                if (std::filesystem::exists(dated_file)) {
+                    rotate_files_for_date(file_date);
+                }
+
+                // Now rename current base file to dated filename
+                std::error_code ec;
+                std::filesystem::rename(base_path_, dated_file, ec);
+                if (ec) {
+                    // If rename fails, try copy and remove
+                    std::filesystem::copy_file(base_path_, dated_file, ec);
+                    if (!ec) {
+                        std::filesystem::remove(base_path_, ec);
+                    }
+                }
+
+                // Reopen file for today
+                file_stream_.open(base_path_, std::ios::out | std::ios::trunc);
+                if (!file_stream_) {
+                    throw std::runtime_error("Failed to reopen daily log file: " + base_path_.string());
+                }
+                current_file_size_ = 0;
+            } else {
+                // File is from today, continue appending
+                current_file_size_ = std::filesystem::file_size(base_path_);
+            }
+        } else {
+            // Could not get file date, just continue with current file
+            current_file_size_ = std::filesystem::file_size(base_path_);
+        }
     }
     // Keep logging to base_path (e.g., daily.log) - FileSink constructor already opened it
 }
@@ -972,11 +1020,58 @@ inline DailyFileSink::DailyFileSink(const std::filesystem::path& base_path, cons
 inline DailyFileSink::DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
                                   const std::string& custom_timestamp_format, std::string&& name)
     : FileSink(base_path, custom_timestamp_format, std::move(name)), config_(config), base_path_(base_path),
-      current_file_size_(0), current_day_index_(0) {
+      current_file_size_(0) {
     current_date_ = get_date_string();
-    // Initialize file size if file already exists
+
+    // Check if file already exists and is from a previous day
     if (std::filesystem::exists(base_path_)) {
-        current_file_size_ = std::filesystem::file_size(base_path_);
+        auto last_write_time = std::filesystem::last_write_time(base_path_);
+        auto last_write_time_t = std::chrono::system_clock::to_time_t(
+            std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+                last_write_time - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now()
+            )
+        );
+        std::tm* tm_ptr = std::localtime(&last_write_time_t);
+        if (tm_ptr) {
+            char date_str[11];
+            std::strftime(date_str, sizeof(date_str), "%Y-%m-%d", tm_ptr);
+            std::string file_date = std::string(date_str);
+
+            // If the existing file is from a previous day, rotate it
+            if (file_date != current_date_) {
+                file_stream_.close();
+
+                // Check if dated file already exists, if so rotate all files for that date
+                std::filesystem::path dated_file = get_dated_filename(file_date);
+                if (std::filesystem::exists(dated_file)) {
+                    rotate_files_for_date(file_date);
+                }
+
+                // Now rename current base file to dated filename
+                std::error_code ec;
+                std::filesystem::rename(base_path_, dated_file, ec);
+                if (ec) {
+                    // If rename fails, try copy and remove
+                    std::filesystem::copy_file(base_path_, dated_file, ec);
+                    if (!ec) {
+                        std::filesystem::remove(base_path_, ec);
+                    }
+                }
+
+                // Reopen file for today
+                file_stream_.open(base_path_, std::ios::out | std::ios::trunc);
+                if (!file_stream_) {
+                    throw std::runtime_error("Failed to reopen daily log file: " + base_path_.string());
+                }
+                current_file_size_ = 0;
+            } else {
+                // File is from today, continue appending
+                current_file_size_ = std::filesystem::file_size(base_path_);
+            }
+        } else {
+            // Could not get file date, just continue with current file
+            current_file_size_ = std::filesystem::file_size(base_path_);
+        }
     }
     // Keep logging to base_path (e.g., daily.log) - FileSink constructor already opened it
 }
@@ -1013,9 +1108,6 @@ inline void DailyFileSink::check_rotation() {
             }
         }
 
-        // Reset index for new day
-        current_day_index_ = 0;
-
         // Reopen base file for new day's logs
         file_stream_.open(base_path_, std::ios::out | std::ios::trunc); // Start fresh for new day
         if (!file_stream_) {
@@ -1027,36 +1119,81 @@ inline void DailyFileSink::check_rotation() {
     }
 
     // Check for size-based rotation
-    if (current_file_size_ >= config_.max_file_size) {
-        // Close current file
-        file_stream_.close();
+    if (config_.max_file_size && current_file_size_ >= config_.max_file_size) {
+        rotate_daily_files();
+    }
+}
 
-        // Rename current base file to dated indexed filename (e.g., daily.log -> daily_2025-08-24_001.log)
-        std::filesystem::path old_dated_file = get_dated_indexed_filename(current_date_, current_day_index_);
-        std::error_code ec;
-        if (std::filesystem::exists(base_path_)) {
-            std::filesystem::rename(base_path_, old_dated_file, ec);
-            if (ec) {
-                // If rename fails, try copy and remove
-                std::filesystem::copy_file(base_path_, old_dated_file, ec);
-                if (!ec) {
-                    std::filesystem::remove(base_path_, ec);
-                }
+inline void DailyFileSink::rotate_files_for_date(const std::string& date) {
+    // Remove the oldest file if it exists and max_files is configured
+    // Files are: daily_DATE.log (index 0), daily_DATE_001.log (index 1), ..., daily_DATE_<max_files-1>.log (index max_files-1)
+
+    auto dated_file = get_dated_filename(date);
+
+    if (config_.max_files == 1) {
+        // If max_files is 1, we only keep the dated file (no indexed files)
+        // Just remove the old dated file - it will be replaced by the new one
+        if (std::filesystem::exists(dated_file)) {
+            std::filesystem::remove(dated_file);
+        }
+    } else if (config_.max_files > 1) {
+        // Remove the oldest indexed file
+        auto oldest_file = get_dated_indexed_filename(date, config_.max_files - 1);
+        if (std::filesystem::exists(oldest_file)) {
+            std::filesystem::remove(oldest_file);
+        }
+
+        // Rotate existing indexed files for the given date
+        // Start from the highest index and work down to 2
+        for (size_t i = config_.max_files - 1; i >= 2; --i) {
+            auto src = get_dated_indexed_filename(date, i - 1);
+            auto dst = get_dated_indexed_filename(date, i);
+
+            if (std::filesystem::exists(src)) {
+                std::filesystem::rename(src, dst);
             }
         }
 
-        // Increment index for next file
-        ++current_day_index_;
-
-        // Reopen base file for new logs
-        file_stream_.open(base_path_, std::ios::out | std::ios::trunc);
-        if (!file_stream_) {
-            throw std::runtime_error("Failed to reopen daily log file: " + base_path_.string());
+        // Rotate the dated file (without index) to _001.log
+        if (std::filesystem::exists(dated_file)) {
+            auto indexed_file_1 = get_dated_indexed_filename(date, 1);
+            std::filesystem::rename(dated_file, indexed_file_1);
         }
-
-        current_file_size_ = 0;
-        return; // Don't check date rotation if we just did size rotation
     }
+}
+
+inline void DailyFileSink::rotate_daily_files() {
+    file_stream_.close();
+
+    // Rotate all existing files for the current date (if any)
+    std::filesystem::path dated_file = get_dated_filename(current_date_);
+
+    // Always rotate if dated file exists, which will shift:
+    // daily_2025-10-02.log -> _001.log
+    // _001.log -> _002.log, etc.
+    if (std::filesystem::exists(dated_file)) {
+        rotate_files_for_date(current_date_);
+    }
+
+    // Rename current base file to dated filename (e.g., daily.log -> daily_2025-10-02.log)
+    std::error_code ec;
+    if (std::filesystem::exists(base_path_)) {
+        std::filesystem::rename(base_path_, dated_file, ec);
+        if (ec) {
+            // If rename fails, try copy and remove
+            std::filesystem::copy_file(base_path_, dated_file, ec);
+            if (!ec) {
+                std::filesystem::remove(base_path_, ec);
+            }
+        }
+    }
+
+    // Create new current file
+    file_stream_.open(base_path_, std::ios::out | std::ios::trunc);
+    if (!file_stream_) {
+        throw std::runtime_error("Failed to reopen daily log file: " + base_path_.string());
+    }
+    current_file_size_ = 0;
 }
 
 inline std::filesystem::path DailyFileSink::get_daily_filename() {
