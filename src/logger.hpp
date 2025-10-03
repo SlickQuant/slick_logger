@@ -380,13 +380,13 @@ public:
 
 protected:
     void check_rotation();
-    virtual std::string get_date_string();
+    virtual std::string get_date_string() const;
     void rotate_daily_files();
     void rotate_files_for_date(const std::string& date);
 
-    std::filesystem::path get_daily_filename();
-    std::filesystem::path get_dated_filename(const std::string& date);
-    std::filesystem::path get_dated_indexed_filename(const std::string& date, size_t index);
+    std::filesystem::path get_daily_filename() const;
+    std::filesystem::path get_dated_filename(const std::string& date) const;
+    std::filesystem::path get_dated_indexed_filename(const std::string& date, size_t index) const;
 
     RotationConfig config_;
     std::filesystem::path base_path_;
@@ -1019,8 +1019,10 @@ inline DailyFileSink::DailyFileSink(const std::filesystem::path& base_path, cons
 
 inline DailyFileSink::DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
                                   const std::string& custom_timestamp_format, std::string&& name)
-    : FileSink(base_path, custom_timestamp_format, std::move(name)), config_(config), base_path_(base_path),
-      current_file_size_(0) {
+    : FileSink(base_path, custom_timestamp_format, std::move(name))
+    , config_(config)
+    , base_path_(base_path)
+    , current_file_size_(0) {
     current_date_ = get_date_string();
 
     // Check if file already exists and is from a previous day
@@ -1196,23 +1198,23 @@ inline void DailyFileSink::rotate_daily_files() {
     current_file_size_ = 0;
 }
 
-inline std::filesystem::path DailyFileSink::get_daily_filename() {
+inline std::filesystem::path DailyFileSink::get_daily_filename() const {
     std::string date_str = get_date_string();
     return get_dated_filename(date_str);
 }
 
-inline std::filesystem::path DailyFileSink::get_dated_filename(const std::string& date) {
+inline std::filesystem::path DailyFileSink::get_dated_filename(const std::string& date) const {
     std::string filename = base_path_.stem().string() + "_" + date + base_path_.extension().string();
     return base_path_.parent_path() / filename;
 }
 
-inline std::filesystem::path DailyFileSink::get_dated_indexed_filename(const std::string& date, size_t index) {
+inline std::filesystem::path DailyFileSink::get_dated_indexed_filename(const std::string& date, size_t index) const {
     std::ostringstream oss;
     oss << base_path_.stem().string() << "_" << date << "_" << std::setfill('0') << std::setw(3) << index << base_path_.extension().string();
     return base_path_.parent_path() / oss.str();
 }
 
-inline std::string DailyFileSink::get_date_string() {
+inline std::string DailyFileSink::get_date_string() const {
     auto now = std::chrono::system_clock::now();
     time_t time_val = std::chrono::system_clock::to_time_t(now);
     std::tm* tm_ptr = std::localtime(&time_val);
