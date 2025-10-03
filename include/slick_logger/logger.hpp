@@ -56,8 +56,8 @@
 #define SLICK_LOGGER_VERSION_MAJOR 1
 #define SLICK_LOGGER_VERSION_MINOR 0
 #define SLICK_LOGGER_VERSION_PATCH 0
-#define SLICK_LOGGER_VERSION_TWEAK 3
-#define SLICK_LOGGER_VERSION "1.0.0.3"
+#define SLICK_LOGGER_VERSION_TWEAK 5
+#define SLICK_LOGGER_VERSION "1.0.0.5"
 
 #ifndef SLICK_LOGGER_MAX_ARGS
 #define SLICK_LOGGER_MAX_ARGS 20
@@ -1539,6 +1539,11 @@ inline void Logger::enqueue_argument(LogArgument& arg, T&& value) {
         arg.value.literal_ptr = value;
     }
     else if constexpr (std::is_same_v<DecayedT, const char*>) {
+        // Assume string literal - store pointer directly
+        arg.type = ArgType::STRING_DYNAMIC;
+        arg.value.dynamic_str = store_string_in_queue(value);
+    }
+    else if constexpr (std::is_same_v<DecayedT, char*>) {
         // Assume string literal - store pointer directly
         arg.type = ArgType::STRING_DYNAMIC;
         arg.value.dynamic_str = store_string_in_queue(value);

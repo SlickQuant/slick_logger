@@ -1,3 +1,6 @@
+# v1.0.0.5 - 10-03-2025
+- Support char* logging argument to avoid build error. 
+
 # v1.0.0.4 - 10-02-2025
 - Fix critical DailyFileSink bug: prevent file overwrites on program restart
   - Remove current_day_index_ member to eliminate restart index reset issue

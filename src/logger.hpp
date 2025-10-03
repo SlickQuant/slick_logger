@@ -1541,6 +1541,11 @@ inline void Logger::enqueue_argument(LogArgument& arg, T&& value) {
         arg.type = ArgType::STRING_DYNAMIC;
         arg.value.dynamic_str = store_string_in_queue(value);
     }
+    else if constexpr (std::is_same_v<DecayedT, char*>) {
+        // Assume string literal - store pointer directly
+        arg.type = ArgType::STRING_DYNAMIC;
+        arg.value.dynamic_str = store_string_in_queue(value);
+    }
     else if constexpr (std::is_same_v<DecayedT, std::string>) {
         // Dynamic string - copy to string queue
         arg.type = ArgType::STRING_DYNAMIC;
