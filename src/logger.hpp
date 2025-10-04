@@ -1560,7 +1560,7 @@ inline void Logger::enqueue_argument(LogArgument& arg, T&& value) {
     }
     else if constexpr (std::is_pointer_v<DecayedT>) {
         arg.type = ArgType::PTR;
-        arg.value.ptr = static_cast<const void*>(value);
+        arg.value.ptr = static_cast<void*>(value);
     }
     else {
         // custom type - convert to string
