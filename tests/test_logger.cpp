@@ -317,6 +317,36 @@ TEST_F(SlickLoggerTest, SingleStringLogging) {
     EXPECT_TRUE(file_contents.find("string_view message") != std::string::npos);
 }
 
+TEST_F(SlickLoggerTest, CharArrayLogging) {
+    struct Msg {
+        char msg_[32];
+    };
+
+    Msg msg;
+    sprintf(msg.msg_, "test char array");
+
+    std::filesystem::remove("test_char_array.log");
+    
+    slick_logger::Logger::instance().init("test_char_array.log", 1024);
+    
+    LOG_INFO("Log char array: {}", msg.msg_);
+    
+    slick_logger::Logger::instance().shutdown();
+    
+    ASSERT_TRUE(std::filesystem::exists("test_char_array.log"));
+    
+    std::ifstream log_file("test_char_array.log");
+    std::string file_contents;
+    std::string line;
+    std::getline(log_file, line);   // first line is the logger's version
+    while (std::getline(log_file, line)) {
+        file_contents += line + "\n";
+    }
+    
+    // Check valid formats work
+    EXPECT_TRUE(file_contents.find("Log char array: test char array") != std::string::npos);
+}
+
 int main(int argc, char **argv) {
     testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

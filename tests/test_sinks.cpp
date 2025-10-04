@@ -182,7 +182,7 @@ TEST_F(SinkTest, DailyFileSinkRotation) {
         }
         
         // Override to return our controlled test date
-        std::string get_date_string() override {
+        std::string get_date_string() const override {
             return test_date_;
         }
         

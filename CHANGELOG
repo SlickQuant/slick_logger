@@ -1,5 +1,8 @@
+# v1.0.0.6 - 10-14-2025
+- Update slick_queue to v1.1.0.0
+
 # v1.0.0.5 - 10-03-2025
-- Support char* logging argument to avoid build error. 
+- Support char* logging argument to avoid build error.
 
 # v1.0.0.4 - 10-02-2025
 - Fix critical DailyFileSink bug: prevent file overwrites on program restart
