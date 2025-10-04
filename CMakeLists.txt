@@ -75,7 +75,7 @@ message(STATUS "slick_logger: ${BUILD_VERSION}")
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_custom_target(dist_slick_logger ALL
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}/dist/include
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/dist
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
         COMMENT "Copying slick_logger headers to dist/include"
         VERBATIM
     )
