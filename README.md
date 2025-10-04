@@ -1,5 +1,7 @@
 # slick_logger
 
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/SlickQuant/slick_logger/actions/workflows/ci.yml/badge.svg)](https://github.com/SlickQuant/slick_logger/actions/workflows/ci.yml)
 
 A high-performance, cross-platform **header-only** logging library for C++20 using a multi-producer, multi-consumer ring buffer with **multi-sink support** and **log rotation** capabilities.
