@@ -56,8 +56,8 @@
 #define SLICK_LOGGER_VERSION_MAJOR 1
 #define SLICK_LOGGER_VERSION_MINOR 0
 #define SLICK_LOGGER_VERSION_PATCH 0
-#define SLICK_LOGGER_VERSION_TWEAK 5
-#define SLICK_LOGGER_VERSION "1.0.0.5"
+#define SLICK_LOGGER_VERSION_TWEAK 6
+#define SLICK_LOGGER_VERSION "1.0.0.6"
 
 #ifndef SLICK_LOGGER_MAX_ARGS
 #define SLICK_LOGGER_MAX_ARGS 20
@@ -1021,8 +1021,10 @@ inline DailyFileSink::DailyFileSink(const std::filesystem::path& base_path, cons
 
 inline DailyFileSink::DailyFileSink(const std::filesystem::path& base_path, const RotationConfig& config,
                                   const std::string& custom_timestamp_format, std::string&& name)
-    : FileSink(base_path, custom_timestamp_format, std::move(name)), config_(config), base_path_(base_path),
-      current_file_size_(0) {
+    : FileSink(base_path, custom_timestamp_format, std::move(name))
+    , config_(config)
+    , base_path_(base_path)
+    , current_file_size_(0) {
     current_date_ = get_date_string();
 
     // Check if file already exists and is from a previous day
