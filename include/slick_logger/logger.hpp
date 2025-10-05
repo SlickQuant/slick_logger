@@ -1674,9 +1674,12 @@ inline size_t Logger::round_up_to_power_of_2(size_t value) noexcept {
         temp |= temp >> 4;
         temp |= temp >> 8;
         temp |= temp >> 16;
+
+#if defined(_M_X64) || defined(__x86_64__)
         if constexpr (sizeof(size_t) > 4) {
             temp |= temp >> 32;
         }
+#endif
         return temp + 1;
     }
     return value; // Already a power of 2
