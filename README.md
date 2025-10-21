@@ -40,7 +40,7 @@ your_project/
 ├── include/
 │   ├── slick_logger/
 │   │   └── logger.hpp
-│   └── slick_queue/
+│   └── slick/
 │       └── slick_queue.h
 └── src/
     └── main.cpp
@@ -112,7 +112,7 @@ add_executable(your_app main.cpp)
 ### Basic Usage
 
 ```cpp
-#include <slick_logger/logger.hpp>
+#include <slick/logger.hpp>
 
 int main() {
     // Initialize the logger (traditional way)
@@ -136,7 +136,7 @@ int main() {
 slick_logger uses C++20's `std::format` for type-safe and efficient string formatting:
 
 ```cpp
-#include <slick_logger/logger.hpp>
+#include <slick/logger.hpp>
 
 int main() {
     slick::logger::Logger::instance().init("app.log");
@@ -182,10 +182,10 @@ int main() {
 ### Multi-Sink Usage
 
 ```cpp
-#include <slick_logger/logger.hpp>
+#include <slick/logger.hpp>
 
 int main() {
-    using namespace slick_logger;
+    using namespace slick::logger;
 
     // Setup multiple sinks
     Logger::instance().clear_sinks();
@@ -215,7 +215,7 @@ int main() {
 You can log messages to specific sinks by name or get a reference to a sink. Each sink also supports its own minimum log level filtering:
 
 ```cpp
-#include <slick_logger/logger.hpp>
+#include <slick/logger.hpp>
 
 int main() {
     using namespace slick::logger;
@@ -266,7 +266,7 @@ int main() {
 Dedicated sinks only receive messages logged directly to them, not broadcast messages from LOG_* macros:
 
 ```cpp
-#include <slick_logger/logger.hpp>
+#include <slick/logger.hpp>
 
 int main() {
     using namespace slick::logger;
@@ -310,7 +310,7 @@ int main() {
 ### Advanced Configuration
 
 ```cpp
-#include <slick_logger/logger.hpp>
+#include <slick/logger.hpp>
 
 int main() {
     using namespace slick::logger;

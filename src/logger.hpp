@@ -44,7 +44,7 @@
 #include <utility>
 #include <vector>
 #include <string_view>
-#include <slick_queue/slick_queue.h>
+#include <slick/slick_queue.h>
 
 // For time functions on some platforms
 #ifdef _WIN32
@@ -1683,7 +1683,7 @@ inline size_t Logger::round_up_to_power_of_2(size_t value) noexcept {
     return value; // Already a power of 2
 }
 
-} // namespace slick_logger
+} // namespace slick::logger
 
 // Macros for easy logging
 #define LOG_TRACE(...) slick::logger::Logger::instance().log(slick::logger::LogLevel::L_TRACE, __VA_ARGS__)

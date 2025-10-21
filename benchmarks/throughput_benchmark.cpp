@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <map>
 
-#include <slick_logger/logger.hpp>
+#include <slick/logger.hpp>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/async.h>

@@ -1,4 +1,4 @@
-#include <slick_logger/logger.hpp>
+#include <slick/logger.hpp>
 #include <thread>
 #include <chrono>
 

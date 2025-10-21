@@ -8,7 +8,7 @@
 #include <numeric>
 
 // Include logging libraries
-#include <slick_logger/logger.hpp>
+#include <slick/logger.hpp>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/null_sink.h>
