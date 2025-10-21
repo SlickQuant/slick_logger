@@ -62,7 +62,7 @@ add_subdirectory(tests)
 add_subdirectory(examples)
 
 # Add benchmarks (optional)
-option(BUILD_SLICK_LOGGER_BENCHMARKS "Build performance benchmarks" ON)
+option(BUILD_SLICK_LOGGER_BENCHMARKS "Build performance benchmarks" OFF)
 if(BUILD_SLICK_LOGGER_BENCHMARKS AND CMAKE_BUILD_TYPE MATCHES Release)
     add_subdirectory(benchmarks)
 endif()
