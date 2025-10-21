@@ -46,7 +46,7 @@
 #include <utility>
 #include <vector>
 #include <string_view>
-#include <slick/slick_queue.h>
+#include <slick/queue.h>
 
 // For time functions on some platforms
 #ifdef _WIN32
