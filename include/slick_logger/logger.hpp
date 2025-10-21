@@ -56,14 +56,14 @@
 #define SLICK_LOGGER_VERSION_MAJOR 1
 #define SLICK_LOGGER_VERSION_MINOR 0
 #define SLICK_LOGGER_VERSION_PATCH 0
-#define SLICK_LOGGER_VERSION_TWEAK 6
-#define SLICK_LOGGER_VERSION "1.0.0.6"
+#define SLICK_LOGGER_VERSION_TWEAK 7
+#define SLICK_LOGGER_VERSION "1.0.0.7"
 
 #ifndef SLICK_LOGGER_MAX_ARGS
 #define SLICK_LOGGER_MAX_ARGS 20
 #endif
 
-namespace slick_logger {
+namespace slick::logger {
 
 enum class LogLevel : uint8_t {
     L_TRACE = 0,
@@ -1688,9 +1688,9 @@ inline size_t Logger::round_up_to_power_of_2(size_t value) noexcept {
 } // namespace slick_logger
 
 // Macros for easy logging
-#define LOG_TRACE(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::L_TRACE, __VA_ARGS__)
-#define LOG_DEBUG(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::L_DEBUG, __VA_ARGS__)
-#define LOG_INFO(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::L_INFO, __VA_ARGS__)
-#define LOG_WARN(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::L_WARN, __VA_ARGS__)
-#define LOG_ERROR(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::L_ERROR, __VA_ARGS__)
-#define LOG_FATAL(...) slick_logger::Logger::instance().log(slick_logger::LogLevel::L_FATAL, __VA_ARGS__)
+#define LOG_TRACE(...) slick::logger::Logger::instance().log(slick::logger::LogLevel::L_TRACE, __VA_ARGS__)
+#define LOG_DEBUG(...) slick::logger::Logger::instance().log(slick::logger::LogLevel::L_DEBUG, __VA_ARGS__)
+#define LOG_INFO(...) slick::logger::Logger::instance().log(slick::logger::LogLevel::L_INFO, __VA_ARGS__)
+#define LOG_WARN(...) slick::logger::Logger::instance().log(slick::logger::LogLevel::L_WARN, __VA_ARGS__)
+#define LOG_ERROR(...) slick::logger::Logger::instance().log(slick::logger::LogLevel::L_ERROR, __VA_ARGS__)
+#define LOG_FATAL(...) slick::logger::Logger::instance().log(slick::logger::LogLevel::L_FATAL, __VA_ARGS__)

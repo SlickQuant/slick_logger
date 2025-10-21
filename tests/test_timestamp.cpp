@@ -3,7 +3,7 @@
 #include <fstream>
 #include <regex>
 
-using namespace slick_logger;
+using namespace slick::logger;
 
 class TimestampTest : public ::testing::Test {
 protected:

@@ -3,7 +3,7 @@
 #include <thread>
 #include <chrono>
 
-using namespace slick_logger;
+using namespace slick::logger;
 
 int main() {
     std::cout << "SlickLogger Timestamp Format Example\n";

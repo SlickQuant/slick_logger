@@ -54,10 +54,10 @@ public:
 
 private:
     ThroughputResult test_slick_logger_throughput(size_t num_threads) {
-        slick_logger::Logger::instance().reset();
-        slick_logger::Logger::instance().add_file_sink(
+        slick::logger::Logger::instance().reset();
+        slick::logger::Logger::instance().add_file_sink(
             FileUtils::get_unique_filename("slick_throughput"));
-        slick_logger::Logger::instance().init(65536);
+        slick::logger::Logger::instance().init(65536);
 
         SystemMonitor monitor;
         monitor.start_monitoring();
@@ -95,7 +95,7 @@ private:
         monitor.stop_monitoring();
         auto usage = monitor.get_current_usage();
         
-        slick_logger::Logger::instance().shutdown();
+        slick::logger::Logger::instance().shutdown();
         
         std::cout << "SlickLogger (" << num_threads << " threads): " 
                   << std::fixed << std::setprecision(0) << throughput << " ops/sec" << std::endl;
@@ -266,10 +266,10 @@ void test_burst_performance() {
     {
         std::cout << "Testing SlickLogger burst handling..." << std::endl;
         
-        slick_logger::Logger::instance().reset();
-        slick_logger::Logger::instance().add_file_sink(
+        slick::logger::Logger::instance().reset();
+        slick::logger::Logger::instance().add_file_sink(
             FileUtils::get_unique_filename("slick_burst"));
-        slick_logger::Logger::instance().init(65536);
+        slick::logger::Logger::instance().init(65536);
 
         SystemMonitor monitor;
         monitor.start_monitoring();
@@ -305,7 +305,7 @@ void test_burst_performance() {
         std::cout << "  StdDev: " << burst_stats.std_dev() << " ops/sec" << std::endl;
         usage.print();
         
-        slick_logger::Logger::instance().shutdown();
+        slick::logger::Logger::instance().shutdown();
     }
     
     // Compare with spdlog async

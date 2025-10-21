@@ -7,7 +7,7 @@
 #include <mutex>
 
 // Custom sink example: JSON structured logging
-class JsonSink : public slick_logger::ISink {
+class JsonSink : public slick::logger::ISink {
 private:
     std::ofstream file_;
     bool first_entry_ = true;
@@ -27,7 +27,7 @@ public:
         }
     }
     
-    void write(const slick_logger::LogEntry& entry) override {
+    void write(const slick::logger::LogEntry& entry) override {
         // Convert log level to string
         const char* level_str = to_string(entry.level);
         // Format timestamp
@@ -67,13 +67,13 @@ public:
 };
 
 // Custom sink example: Memory buffer for testing
-class MemorySink : public slick_logger::ISink {
+class MemorySink : public slick::logger::ISink {
 private:
     std::vector<std::string> entries_;
     mutable std::mutex mutex_;
     
 public:
-    void write(const slick_logger::LogEntry& entry) override {
+    void write(const slick::logger::LogEntry& entry) override {
         // Format the log entry
         time_t time_val = static_cast<time_t>(entry.timestamp / 1000000000);
         std::tm tm = *std::localtime(&time_val);
@@ -113,7 +113,7 @@ public:
 };
 
 int main() {
-    using namespace slick_logger;
+    using namespace slick::logger;
     
     // Example 1: Traditional single file sink (backwards compatible)
     std::cout << "=== Example 1: Traditional File Logging ===\n";

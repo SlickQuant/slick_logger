@@ -96,9 +96,9 @@ public:
         : BenchmarkScenario("slick_logger"), msg_size_(msg_size) {}
 
     void setup() override {
-        slick_logger::Logger::instance().reset();
-        slick_logger::Logger::instance().add_file_sink(FileUtils::get_unique_filename("slick"));
-        slick_logger::Logger::instance().init(65536);
+        slick::logger::Logger::instance().reset();
+        slick::logger::Logger::instance().add_file_sink(FileUtils::get_unique_filename("slick"));
+        slick::logger::Logger::instance().init(65536);
         
         // Warm up
         for (int i = 0; i < 100; ++i) {
@@ -108,7 +108,7 @@ public:
     }
 
     void cleanup() override {
-        slick_logger::Logger::instance().shutdown();
+        slick::logger::Logger::instance().shutdown();
     }
 
     void log_single_message() override {

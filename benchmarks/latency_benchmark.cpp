@@ -128,9 +128,9 @@ private:
 void measure_slick_logger_latency() {
     std::cout << "=== SLICK LOGGER LATENCY TEST ===" << std::endl;
     
-    slick_logger::Logger::instance().reset();
-    slick_logger::Logger::instance().add_file_sink(FileUtils::get_unique_filename("slick_latency"));
-    slick_logger::Logger::instance().init(65536);
+    slick::logger::Logger::instance().reset();
+    slick::logger::Logger::instance().add_file_sink(FileUtils::get_unique_filename("slick_latency"));
+    slick::logger::Logger::instance().init(65536);
 
     LatencyAnalyzer analyzer;
     MessageGenerator msg_gen;
@@ -158,7 +158,7 @@ void measure_slick_logger_latency() {
 
     analyzer.analyze_and_report();
     
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
 }
 
 // Measure spdlog sync latency
@@ -202,9 +202,9 @@ void measure_spdlog_sync_latency() {
 void measure_queue_pressure_effects() {
     std::cout << "=== QUEUE PRESSURE EFFECTS ===" << std::endl;
     
-    slick_logger::Logger::instance().reset();
-    slick_logger::Logger::instance().add_file_sink(FileUtils::get_unique_filename("slick_pressure"));
-    slick_logger::Logger::instance().init(65536);
+    slick::logger::Logger::instance().reset();
+    slick::logger::Logger::instance().add_file_sink(FileUtils::get_unique_filename("slick_pressure"));
+    slick::logger::Logger::instance().init(65536);
 
     MessageGenerator msg_gen;
     
@@ -263,7 +263,7 @@ void measure_queue_pressure_effects() {
         std::cout << std::endl;
     }
     
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
 }
 
 int main(int argc, char* argv[]) {

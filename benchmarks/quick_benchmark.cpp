@@ -43,16 +43,16 @@ int main() {
     
     // SlickLogger test
     std::cout << "\nSlickLogger (single thread):\n";
-    slick_logger::Logger::instance().reset();
-    slick_logger::Logger::instance().add_file_sink("bench_slick.log");
-    slick_logger::Logger::instance().init(8192);
+    slick::logger::Logger::instance().reset();
+    slick::logger::Logger::instance().add_file_sink("bench_slick.log");
+    slick::logger::Logger::instance().init(8192);
     
     timer.start();
     for (size_t i = 0; i < test_messages; ++i) {
         LOG_INFO("Benchmark message {} value: {:.3f}", i, i * 1.618);
     }
     double slick_time = timer.stop();
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
     
     std::cout << "Time: " << slick_time << " ms\n";
     std::cout << "Rate: " << static_cast<size_t>(timer.rate(test_messages, slick_time)) << " msg/sec\n";
@@ -73,9 +73,9 @@ int main() {
     
     // Multi-threaded SlickLogger
     std::cout << "\nSlickLogger (4 threads):\n";
-    slick_logger::Logger::instance().reset();
-    slick_logger::Logger::instance().add_file_sink("bench_slick_mt.log");
-    slick_logger::Logger::instance().init(8192);
+    slick::logger::Logger::instance().reset();
+    slick::logger::Logger::instance().add_file_sink("bench_slick_mt.log");
+    slick::logger::Logger::instance().init(8192);
     
     const size_t num_threads = 4;
     const size_t msgs_per_thread = test_messages / num_threads;
@@ -95,7 +95,7 @@ int main() {
     }
     
     double slick_mt_time = timer.stop();
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
     
     std::cout << "Time: " << slick_mt_time << " ms\n";
     std::cout << "Rate: " << static_cast<size_t>(timer.rate(test_messages, slick_mt_time)) << " msg/sec\n";

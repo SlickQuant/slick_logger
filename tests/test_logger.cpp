@@ -25,13 +25,13 @@ TEST_F(SlickLoggerTest, BasicLogging) {
     std::filesystem::remove("test.log");
 
     // Initialize logger
-    slick_logger::Logger::instance().init("test.log", 1024);
+    slick::logger::Logger::instance().init("test.log", 1024);
 
     // Log a message
     LOG_INFO("Test message");
 
     // Shutdown
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
 
     // Check if file was created and contains the message
     ASSERT_TRUE(std::filesystem::exists("test.log"));
@@ -48,8 +48,8 @@ TEST_F(SlickLoggerTest, LogFilter) {
     std::filesystem::remove("test.log");
 
     // Initialize logger
-    slick_logger::Logger::instance().init("test.log", 1024);
-    slick_logger::Logger::instance().set_level(slick_logger::LogLevel::L_INFO);
+    slick::logger::Logger::instance().init("test.log", 1024);
+    slick::logger::Logger::instance().set_level(slick::logger::LogLevel::L_INFO);
 
     LOG_INFO("Test message");
     LOG_DEBUG("This debug message should not appear");
@@ -59,7 +59,7 @@ TEST_F(SlickLoggerTest, LogFilter) {
     LOG_FATAL("This is fatal");
 
     // Shutdown
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
 
     // Check if file was created and contains the message
     ASSERT_TRUE(std::filesystem::exists("test.log"));
@@ -80,7 +80,7 @@ TEST_F(SlickLoggerTest, LogFilter) {
 TEST_F(SlickLoggerTest, MultiThreadedLogging) {
     std::filesystem::remove("test_mt.log");
 
-    slick_logger::Logger::instance().init("test_mt.log", 1024);
+    slick::logger::Logger::instance().init("test_mt.log", 1024);
 
     // Log from multiple threads
     std::thread t1([]() {
@@ -98,7 +98,7 @@ TEST_F(SlickLoggerTest, MultiThreadedLogging) {
     t1.join();
     t2.join();
 
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
 
     // Count lines in log file
     std::ifstream log_file("test_mt.log");
@@ -113,14 +113,14 @@ TEST_F(SlickLoggerTest, MultiThreadedLogging) {
 TEST_F(SlickLoggerTest, JSONStringLogging) {
     std::filesystem::remove("test_json.log");
     
-    slick_logger::Logger::instance().init("test_json.log", 1024);
+    slick::logger::Logger::instance().init("test_json.log", 1024);
     
     // Test logging JSON strings with curly braces (no arguments)
     LOG_INFO("[{\"T\":\"success\",\"msg\":\"connected\"}]");
     LOG_INFO("{\"user\":\"alice\",\"status\":\"active\",\"count\":42}");
     LOG_INFO("Complex JSON: {\"data\":{\"nested\":{\"value\":\"test\"}}}");
     
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
     
     // Verify the JSON strings were logged correctly
     ASSERT_TRUE(std::filesystem::exists("test_json.log"));
@@ -142,7 +142,7 @@ TEST_F(SlickLoggerTest, JSONStringLogging) {
 TEST_F(SlickLoggerTest, FormatErrorHandling) {
     std::filesystem::remove("test_format_error.log");
     
-    slick_logger::Logger::instance().init("test_format_error.log", 1024);
+    slick::logger::Logger::instance().init("test_format_error.log", 1024);
     
     // Test various malformed format strings that should trigger exception handling
     LOG_INFO("Unmatched opening brace: {incomplete");
@@ -154,7 +154,7 @@ TEST_F(SlickLoggerTest, FormatErrorHandling) {
     LOG_INFO("Valid format: {}", "works");
     LOG_INFO("Multiple valid: {} and {}", "first", "second");
     
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
     
     // Verify error handling worked and log file exists
     ASSERT_TRUE(std::filesystem::exists("test_format_error.log"));
@@ -180,7 +180,7 @@ TEST_F(SlickLoggerTest, FormatErrorHandling) {
 TEST_F(SlickLoggerTest, NoArgumentsFormatting) {
     std::filesystem::remove("test_no_args.log");
     
-    slick_logger::Logger::instance().init("test_no_args.log", 1024);
+    slick::logger::Logger::instance().init("test_no_args.log", 1024);
     
     // Test strings with curly braces but no arguments - should be logged as-is
     LOG_INFO("No args: This {has} {curly} {braces}");
@@ -190,7 +190,7 @@ TEST_F(SlickLoggerTest, NoArgumentsFormatting) {
     // Test empty format string
     LOG_INFO("");
     
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
     
     ASSERT_TRUE(std::filesystem::exists("test_no_args.log"));
     
@@ -211,7 +211,7 @@ TEST_F(SlickLoggerTest, NoArgumentsFormatting) {
 TEST_F(SlickLoggerTest, MixedValidAndInvalidFormats) {
     std::filesystem::remove("test_mixed.log");
     
-    slick_logger::Logger::instance().init("test_mixed.log", 1024);
+    slick::logger::Logger::instance().init("test_mixed.log", 1024);
     
     // Mix of valid formatting, invalid formatting, and no-argument logging
     LOG_INFO("Valid: User {} has {} points", "Alice", 100);
@@ -220,7 +220,7 @@ TEST_F(SlickLoggerTest, MixedValidAndInvalidFormats) {
     LOG_INFO("Valid again: Temperature is {:.1f}°C", 23.5);
     LOG_INFO("Broken: {invalid} format {"); // just a string literal
     
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
     
     ASSERT_TRUE(std::filesystem::exists("test_mixed.log"));
     
@@ -246,7 +246,7 @@ TEST_F(SlickLoggerTest, MixedValidAndInvalidFormats) {
 TEST_F(SlickLoggerTest, ConstCharArrayLogging) {
     std::filesystem::remove("test_char_array.log");
     
-    slick_logger::Logger::instance().init("test_char_array.log", 1024);
+    slick::logger::Logger::instance().init("test_char_array.log", 1024);
     
     {
         const char* msg = "Const char array message";
@@ -261,7 +261,7 @@ TEST_F(SlickLoggerTest, ConstCharArrayLogging) {
         LOG_INFO("Message: {}", msg.c_str());
     }
     
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
     
     ASSERT_TRUE(std::filesystem::exists("test_char_array.log"));
     
@@ -282,7 +282,7 @@ TEST_F(SlickLoggerTest, ConstCharArrayLogging) {
 TEST_F(SlickLoggerTest, SingleStringLogging) {
     std::filesystem::remove("test_single_string.log");
     
-    slick_logger::Logger::instance().init("test_single_string.log", 1024);
+    slick::logger::Logger::instance().init("test_single_string.log", 1024);
     
     LOG_INFO("string literal");
     {
@@ -298,7 +298,7 @@ TEST_F(SlickLoggerTest, SingleStringLogging) {
         LOG_INFO(msg);
     }
     
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
     
     ASSERT_TRUE(std::filesystem::exists("test_single_string.log"));
     
@@ -327,11 +327,11 @@ TEST_F(SlickLoggerTest, CharArrayLogging) {
 
     std::filesystem::remove("test_char_array.log");
     
-    slick_logger::Logger::instance().init("test_char_array.log", 1024);
+    slick::logger::Logger::instance().init("test_char_array.log", 1024);
     
     LOG_INFO("Log char array: {}", msg.msg_);
     
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
     
     ASSERT_TRUE(std::filesystem::exists("test_char_array.log"));
     

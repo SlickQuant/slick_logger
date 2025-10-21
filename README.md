@@ -116,7 +116,7 @@ add_executable(your_app main.cpp)
 
 int main() {
     // Initialize the logger (traditional way)
-    slick_logger::Logger::instance().init("app.log", 1024); // queue size
+    slick::logger::Logger::instance().init("app.log", 1024); // queue size
 
     // Log messages - formatting happens in background thread for performance
     LOG_INFO("Application started");
@@ -126,7 +126,7 @@ int main() {
     LOG_INFO("User {} balance: ${:.2f}", "Alice", 1234.56); // Format specifiers supported
 
     // Shutdown (optional, called automatically on destruction)
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
     return 0;
 }
 ```
@@ -139,7 +139,7 @@ slick_logger uses C++20's `std::format` for type-safe and efficient string forma
 #include <slick_logger/logger.hpp>
 
 int main() {
-    slick_logger::Logger::instance().init("app.log");
+    slick::logger::Logger::instance().init("app.log");
 
     // Basic placeholders
     LOG_INFO("Simple message: {}", "hello");
@@ -167,7 +167,7 @@ int main() {
     std::vector<int> numbers = {1, 2, 3, 4, 5};
     LOG_INFO("Vector size: {}", numbers.size());
 
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
     return 0;
 }
 ```
@@ -218,7 +218,7 @@ You can log messages to specific sinks by name or get a reference to a sink. Eac
 #include <slick_logger/logger.hpp>
 
 int main() {
-    using namespace slick_logger;
+    using namespace slick::logger;
 
     Logger::instance().clear_sinks();
     Logger::instance().add_file_sink("app.log", "app_sink");
@@ -269,7 +269,7 @@ Dedicated sinks only receive messages logged directly to them, not broadcast mes
 #include <slick_logger/logger.hpp>
 
 int main() {
-    using namespace slick_logger;
+    using namespace slick::logger;
 
     Logger::instance().clear_sinks();
 
@@ -313,7 +313,7 @@ int main() {
 #include <slick_logger/logger.hpp>
 
 int main() {
-    using namespace slick_logger;
+    using namespace slick::logger;
     
     // Create configuration
     LogConfig config;
@@ -373,7 +373,7 @@ Date-based log rotation:
 ## Rotation Configuration
 
 ```cpp
-slick_logger::RotationConfig config;
+slick::logger::RotationConfig config;
 config.max_file_size = 50 * 1024 * 1024;  // 50MB
 config.max_files = 10;                     // keep last 10 files
 config.compress_old = false;               // future feature
@@ -444,7 +444,7 @@ Being a header-only library provides several advantages:
 Creating custom sinks is straightforward - just inherit from `ISink`:
 
 ```cpp
-class JsonSink : public slick_logger::ISink {
+class JsonSink : public slick::logger::ISink {
     std::ofstream file_;
     bool first_entry_ = true;
     
@@ -453,7 +453,7 @@ public:
         file_ << "[\n"; // Start JSON array
     }
     
-    void write(const slick_logger::LogEntry& entry) override {
+    void write(const slick::logger::LogEntry& entry) override {
         // Format as JSON - see examples/multi_sink_example.cpp for full implementation
         const char* level_str = /* convert level to string */;
         auto [message, _] = format_log_message(entry);

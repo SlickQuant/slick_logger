@@ -43,9 +43,9 @@ private:
 void benchmark_slick_logger(const std::string& filename, size_t message_count) {
     std::cout << "\n=== SlickLogger Benchmark ===\n";
     
-    slick_logger::Logger::instance().reset();
-    slick_logger::Logger::instance().add_file_sink(filename);
-    slick_logger::Logger::instance().init(65536);
+    slick::logger::Logger::instance().reset();
+    slick::logger::Logger::instance().add_file_sink(filename);
+    slick::logger::Logger::instance().init(65536);
     
     // Single-threaded test
     BenchmarkTimer timer;
@@ -56,7 +56,7 @@ void benchmark_slick_logger(const std::string& filename, size_t message_count) {
     }
     
     timer.stop();
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
     
     std::cout << "Messages: " << message_count << "\n";
     std::cout << "Time: " << timer.elapsed_ms() << " ms\n";
@@ -65,9 +65,9 @@ void benchmark_slick_logger(const std::string& filename, size_t message_count) {
     // Multi-threaded test
     std::cout << "\n--- Multi-threaded (4 threads) ---\n";
     
-    slick_logger::Logger::instance().reset();
-    slick_logger::Logger::instance().add_file_sink(filename + "_mt");
-    slick_logger::Logger::instance().init(65536);
+    slick::logger::Logger::instance().reset();
+    slick::logger::Logger::instance().add_file_sink(filename + "_mt");
+    slick::logger::Logger::instance().init(65536);
     
     const size_t num_threads = 4;
     const size_t messages_per_thread = message_count / num_threads;
@@ -88,7 +88,7 @@ void benchmark_slick_logger(const std::string& filename, size_t message_count) {
     }
     
     timer.stop();
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
     
     std::cout << "Messages: " << message_count << " (4 threads)\n";
     std::cout << "Time: " << timer.elapsed_ms() << " ms\n";
@@ -179,9 +179,9 @@ void benchmark_latency() {
     
     // SlickLogger latency
     std::cout << "Measuring SlickLogger latency...\n";
-    slick_logger::Logger::instance().reset();
-    slick_logger::Logger::instance().add_file_sink("latency_slick.log");
-    slick_logger::Logger::instance().init(65536);
+    slick::logger::Logger::instance().reset();
+    slick::logger::Logger::instance().add_file_sink("latency_slick.log");
+    slick::logger::Logger::instance().init(65536);
     
     // Warmup
     for (int i = 0; i < 1000; ++i) {
@@ -197,7 +197,7 @@ void benchmark_latency() {
         slick_latencies.push_back(duration_cast<nanoseconds>(end - start).count());
     }
     
-    slick_logger::Logger::instance().shutdown();
+    slick::logger::Logger::instance().shutdown();
     
     // spdlog latency
     std::cout << "Measuring spdlog latency...\n";

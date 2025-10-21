@@ -61,14 +61,14 @@ private:
         size_t baseline_memory = baseline_usage.memory_bytes;
         
         // Initialize logger
-        slick_logger::Logger::instance().reset();
+        slick::logger::Logger::instance().reset();
         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Let cleanup complete
         
         monitor.start_monitoring();
         
-        slick_logger::Logger::instance().add_file_sink(
+        slick::logger::Logger::instance().add_file_sink(
             FileUtils::get_unique_filename("slick_memory"));
-        slick_logger::Logger::instance().init(queue_size);
+        slick::logger::Logger::instance().init(queue_size);
         
         // Log test messages
         MessageGenerator msg_gen;
@@ -89,7 +89,7 @@ private:
         monitor.stop_monitoring();
         auto final_usage = monitor.get_current_usage();
         
-        slick_logger::Logger::instance().shutdown();
+        slick::logger::Logger::instance().shutdown();
         
         MemoryProfile profile;
         profile.logger_name = "SlickLogger";
@@ -208,10 +208,10 @@ private:
         {
             std::cout << "Testing SlickLogger..." << std::endl;
             
-            slick_logger::Logger::instance().reset();
-            slick_logger::Logger::instance().add_file_sink(
+            slick::logger::Logger::instance().reset();
+            slick::logger::Logger::instance().add_file_sink(
                 FileUtils::get_unique_filename("slick_sustained"));
-            slick_logger::Logger::instance().init(65536);
+            slick::logger::Logger::instance().init(65536);
 
             SystemMonitor monitor;
             monitor.start_monitoring();
@@ -248,7 +248,7 @@ private:
             std::cout << "  Final memory: " << (usage.memory_bytes / 1024.0 / 1024.0) << " MB" << std::endl;
             std::cout << std::endl;
             
-            slick_logger::Logger::instance().shutdown();
+            slick::logger::Logger::instance().shutdown();
         }
     }
 
@@ -263,10 +263,10 @@ private:
         SystemMonitor monitor;
         
         for (size_t cycle = 0; cycle < num_cycles; ++cycle) {
-            slick_logger::Logger::instance().reset();
-            slick_logger::Logger::instance().add_file_sink(
+            slick::logger::Logger::instance().reset();
+            slick::logger::Logger::instance().add_file_sink(
                 FileUtils::get_unique_filename("slick_frag_" + std::to_string(cycle)));
-            slick_logger::Logger::instance().init(8192);
+            slick::logger::Logger::instance().init(8192);
             
             MessageGenerator msg_gen;
             for (size_t i = 0; i < messages_per_cycle; ++i) {
@@ -274,7 +274,7 @@ private:
                        cycle, i, msg_gen.generate_small());
             }
             
-            slick_logger::Logger::instance().shutdown();
+            slick::logger::Logger::instance().shutdown();
             
             // Small delay to let cleanup complete
             std::this_thread::sleep_for(std::chrono::milliseconds(50));

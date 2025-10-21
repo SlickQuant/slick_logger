@@ -15,7 +15,7 @@ protected:
     }
 
     void TearDown() override {
-        slick_logger::Logger::instance().reset(); // Use reset instead of shutdown
+        slick::logger::Logger::instance().reset(); // Use reset instead of shutdown
         std::this_thread::sleep_for(std::chrono::milliseconds(10)); // Allow cleanup
         cleanup_files();
     }
@@ -58,13 +58,13 @@ TEST_F(SinkTest, ConsoleSinkBasic) {
     std::stringstream buffer;
     std::streambuf* old_cout = std::cout.rdbuf(buffer.rdbuf());
     
-    slick_logger::Logger::instance().clear_sinks();
-    slick_logger::Logger::instance().add_console_sink(false, false); // no colors, no stderr
-    slick_logger::Logger::instance().init(1024);
+    slick::logger::Logger::instance().clear_sinks();
+    slick::logger::Logger::instance().add_console_sink(false, false); // no colors, no stderr
+    slick::logger::Logger::instance().init(1024);
     
     LOG_INFO("Console test message");
     
-    slick_logger::Logger::instance().reset();
+    slick::logger::Logger::instance().reset();
     
     // Restore stdout
     std::cout.rdbuf(old_cout);
@@ -75,13 +75,13 @@ TEST_F(SinkTest, ConsoleSinkBasic) {
 }
 
 TEST_F(SinkTest, FileSinkBasic) {
-    slick_logger::Logger::instance().clear_sinks();
-    slick_logger::Logger::instance().add_file_sink("console_test.log");
-    slick_logger::Logger::instance().init(1024);
+    slick::logger::Logger::instance().clear_sinks();
+    slick::logger::Logger::instance().add_file_sink("console_test.log");
+    slick::logger::Logger::instance().init(1024);
     
     LOG_INFO("File sink test message");
     
-    slick_logger::Logger::instance().reset();
+    slick::logger::Logger::instance().reset();
     
     ASSERT_TRUE(std::filesystem::exists("console_test.log"));
     
@@ -97,17 +97,17 @@ TEST_F(SinkTest, MultiSinkTest) {
     std::stringstream buffer;
     std::streambuf* old_cout = std::cout.rdbuf(buffer.rdbuf());
     
-    slick_logger::Logger::instance().clear_sinks();
-    slick_logger::Logger::instance().add_console_sink(false, false);
-    slick_logger::Logger::instance().add_file_sink("multi_sink_test.log");
-    slick_logger::Logger::instance().init(1024);
+    slick::logger::Logger::instance().clear_sinks();
+    slick::logger::Logger::instance().add_console_sink(false, false);
+    slick::logger::Logger::instance().add_file_sink("multi_sink_test.log");
+    slick::logger::Logger::instance().init(1024);
     
     LOG_INFO("Multi-sink test message");
 
-    auto file_sink = slick_logger::Logger::instance().get_sink<slick_logger::FileSink>();
+    auto file_sink = slick::logger::Logger::instance().get_sink<slick::logger::FileSink>();
     EXPECT_TRUE(file_sink != nullptr);
     
-    slick_logger::Logger::instance().reset();
+    slick::logger::Logger::instance().reset();
     
     // Restore stdout
     std::cout.rdbuf(old_cout);
@@ -126,20 +126,20 @@ TEST_F(SinkTest, MultiSinkTest) {
 }
 
 TEST_F(SinkTest, RotatingFileSinkTest) {
-    slick_logger::RotationConfig rotation_config;
+    slick::logger::RotationConfig rotation_config;
     rotation_config.max_file_size = 100; // Very small for testing
     rotation_config.max_files = 3;
     
-    slick_logger::Logger::instance().clear_sinks();
-    slick_logger::Logger::instance().add_rotating_file_sink("rotating_test.log", rotation_config);
-    slick_logger::Logger::instance().init(1024);
+    slick::logger::Logger::instance().clear_sinks();
+    slick::logger::Logger::instance().add_rotating_file_sink("rotating_test.log", rotation_config);
+    slick::logger::Logger::instance().init(1024);
     
     // Generate enough messages to trigger rotation
     for (int i = 0; i < 20; ++i) {
         LOG_INFO("Rotation test message number {} with extra text to reach size limit", i);
     }
     
-    slick_logger::Logger::instance().reset();
+    slick::logger::Logger::instance().reset();
     
     // Check that rotation occurred
     EXPECT_TRUE(std::filesystem::exists("rotating_test.log"));
@@ -150,15 +150,15 @@ TEST_F(SinkTest, RotatingFileSinkTest) {
 }
 
 TEST_F(SinkTest, DailyFileSinkTest) {
-    slick_logger::RotationConfig daily_config;
+    slick::logger::RotationConfig daily_config;
     
-    slick_logger::Logger::instance().clear_sinks();
-    slick_logger::Logger::instance().add_daily_file_sink("daily_test.log", daily_config);
-    slick_logger::Logger::instance().init(1024);
+    slick::logger::Logger::instance().clear_sinks();
+    slick::logger::Logger::instance().add_daily_file_sink("daily_test.log", daily_config);
+    slick::logger::Logger::instance().init(1024);
     
     LOG_INFO("Daily sink test message");
     
-    slick_logger::Logger::instance().reset();
+    slick::logger::Logger::instance().reset();
     
     // Should log to the base filename (daily_test.log), not a dated file
     EXPECT_TRUE(std::filesystem::exists("daily_test.log"));
@@ -173,9 +173,9 @@ TEST_F(SinkTest, DailyFileSinkTest) {
 
 TEST_F(SinkTest, DailyFileSinkRotation) {
     // Create a testable DailyFileSink that allows us to control the date
-    class TestDailyFileSink : public slick_logger::DailyFileSink {
+    class TestDailyFileSink : public slick::logger::DailyFileSink {
     public:
-        TestDailyFileSink(const std::filesystem::path& base_path, const slick_logger::RotationConfig& config)
+        TestDailyFileSink(const std::filesystem::path& base_path, const slick::logger::RotationConfig& config)
             : DailyFileSink(base_path, config), test_date_("2025-08-25")
         {
             current_date_ = test_date_;
@@ -196,20 +196,20 @@ TEST_F(SinkTest, DailyFileSinkRotation) {
         std::string test_date_;
     };
     
-    slick_logger::RotationConfig daily_config;
+    slick::logger::RotationConfig daily_config;
     
-    slick_logger::Logger::instance().clear_sinks();
+    slick::logger::Logger::instance().clear_sinks();
     
     // Create our test sink with initial date "2025-08-25"
     auto test_sink = std::make_shared<TestDailyFileSink>("daily_rotation_test.log", daily_config);
-    slick_logger::Logger::instance().add_sink(test_sink);
-    slick_logger::Logger::instance().init(1024);
+    slick::logger::Logger::instance().add_sink(test_sink);
+    slick::logger::Logger::instance().init(1024);
     
     // Log some messages on "day 1" (2025-08-25)
     LOG_INFO("Message from day 1");
     LOG_WARN("Warning from day 1");
     
-    slick_logger::Logger::instance().reset();
+    slick::logger::Logger::instance().reset();
     
     // Verify base file has the day 1 content
     ASSERT_TRUE(std::filesystem::exists("daily_rotation_test.log"));
@@ -249,14 +249,14 @@ TEST_F(SinkTest, DailyFileSinkRotation) {
     EXPECT_TRUE(new_base_content.empty() || new_base_content.find_first_not_of(" \t\r\n") == std::string::npos);
     
     // Re-initialize logger to continue logging to the rotated base file
-    slick_logger::Logger::instance().clear_sinks();
-    slick_logger::Logger::instance().add_sink(test_sink);
-    slick_logger::Logger::instance().init(1024);
+    slick::logger::Logger::instance().clear_sinks();
+    slick::logger::Logger::instance().add_sink(test_sink);
+    slick::logger::Logger::instance().init(1024);
     
     // Log new messages on "day 2" - these should go to the fresh base file
     LOG_INFO("Message from day 2");
     
-    slick_logger::Logger::instance().reset();
+    slick::logger::Logger::instance().reset();
     
     // Verify the base file now contains day 2's content
     std::ifstream final_base_file("daily_rotation_test.log");
@@ -271,12 +271,12 @@ TEST_F(SinkTest, DailyFileSinkRotation) {
 }
 
 TEST_F(SinkTest, DailyFileSinkSizeRotation) {
-    slick_logger::RotationConfig size_config;
+    slick::logger::RotationConfig size_config;
     size_config.max_file_size = 200; // Very small size for testing
 
-    slick_logger::Logger::instance().clear_sinks();
-    slick_logger::Logger::instance().add_daily_file_sink("daily_size_test.log", size_config);
-    slick_logger::Logger::instance().init(1024);
+    slick::logger::Logger::instance().clear_sinks();
+    slick::logger::Logger::instance().add_daily_file_sink("daily_size_test.log", size_config);
+    slick::logger::Logger::instance().init(1024);
 
     // Log enough messages to trigger size-based rotation
     // Each message should be around 100+ bytes to trigger rotation quickly
@@ -284,7 +284,7 @@ TEST_F(SinkTest, DailyFileSinkSizeRotation) {
         LOG_INFO("Size rotation test message number {} with enough text to reach the file size limit quickly", i);
     }
 
-    slick_logger::Logger::instance().reset();
+    slick::logger::Logger::instance().reset();
 
     // Check that base file exists
     EXPECT_TRUE(std::filesystem::exists("daily_size_test.log"));
@@ -336,11 +336,11 @@ TEST_F(SinkTest, DailyFileSinkSizeRotation) {
 
 TEST_F(SinkTest, BackwardsCompatibility) {
     // Test that old init method still works
-    slick_logger::Logger::instance().init("console_test.log", 1024);
+    slick::logger::Logger::instance().init("console_test.log", 1024);
     
     LOG_INFO("Backwards compatibility test");
     
-    slick_logger::Logger::instance().reset();
+    slick::logger::Logger::instance().reset();
     
     ASSERT_TRUE(std::filesystem::exists("console_test.log"));
     
@@ -352,23 +352,23 @@ TEST_F(SinkTest, BackwardsCompatibility) {
 }
 
 TEST_F(SinkTest, LogConfigTest) {
-    slick_logger::LogConfig config;
-    config.sinks.push_back(std::make_shared<slick_logger::ConsoleSink>(false, false));
-    config.sinks.push_back(std::make_shared<slick_logger::FileSink>("multi_sink_test.log"));
-    config.min_level = slick_logger::LogLevel::L_WARN;
+    slick::logger::LogConfig config;
+    config.sinks.push_back(std::make_shared<slick::logger::ConsoleSink>(false, false));
+    config.sinks.push_back(std::make_shared<slick::logger::FileSink>("multi_sink_test.log"));
+    config.min_level = slick::logger::LogLevel::L_WARN;
     config.log_queue_size = 2048;
     
     // Redirect stdout
     std::stringstream buffer;
     std::streambuf* old_cout = std::cout.rdbuf(buffer.rdbuf());
     
-    slick_logger::Logger::instance().init(config);
+    slick::logger::Logger::instance().init(config);
     
     LOG_DEBUG("This should not appear"); // Below WARN level
     LOG_WARN("This warning should appear");
     LOG_ERROR("This error should appear");
     
-    slick_logger::Logger::instance().reset();
+    slick::logger::Logger::instance().reset();
     
     // Restore stdout
     std::cout.rdbuf(old_cout);
@@ -389,18 +389,18 @@ TEST_F(SinkTest, LogConfigTest) {
 
 TEST_F(SinkTest, NamedSinkDirectLogging) {
     // Test the new ISink::log() methods for direct selective logging
-    slick_logger::Logger::instance().clear_sinks();
+    slick::logger::Logger::instance().clear_sinks();
     
     // Create named sinks
-    slick_logger::Logger::instance().add_file_sink("named_sink1.log", "sink1");
-    slick_logger::Logger::instance().add_file_sink("named_sink2.log", "sink2");
-    slick_logger::Logger::instance().add_console_sink(false, false, "console"); // no colors for testing
-    slick_logger::Logger::instance().init(1024);
+    slick::logger::Logger::instance().add_file_sink("named_sink1.log", "sink1");
+    slick::logger::Logger::instance().add_file_sink("named_sink2.log", "sink2");
+    slick::logger::Logger::instance().add_console_sink(false, false, "console"); // no colors for testing
+    slick::logger::Logger::instance().init(1024);
     
     // Get sink references
-    auto sink1 = slick_logger::Logger::instance().get_sink("sink1");
-    auto sink2 = slick_logger::Logger::instance().get_sink("sink2");
-    auto console_sink = slick_logger::Logger::instance().get_sink("console");
+    auto sink1 = slick::logger::Logger::instance().get_sink("sink1");
+    auto sink2 = slick::logger::Logger::instance().get_sink("sink2");
+    auto console_sink = slick::logger::Logger::instance().get_sink("console");
     
     // Verify sinks were found
     ASSERT_TRUE(sink1 != nullptr);
@@ -417,7 +417,7 @@ TEST_F(SinkTest, NamedSinkDirectLogging) {
     // Test convenience methods
     sink1->log_trace("Trace to sink1");
     
-    slick_logger::Logger::instance().reset();
+    slick::logger::Logger::instance().reset();
     
     // Verify sink1.log contains only sink1 messages
     ASSERT_TRUE(std::filesystem::exists("named_sink1.log"));
@@ -452,11 +452,11 @@ TEST_F(SinkTest, NamedSinkDirectLogging) {
 
 TEST_F(SinkTest, SinkDirectLoggingWithArgs) {
     // Test direct sink logging with format arguments
-    slick_logger::Logger::instance().clear_sinks();
-    slick_logger::Logger::instance().add_file_sink("args_sink.log", "args_sink");
-    slick_logger::Logger::instance().init(1024);
+    slick::logger::Logger::instance().clear_sinks();
+    slick::logger::Logger::instance().add_file_sink("args_sink.log", "args_sink");
+    slick::logger::Logger::instance().init(1024);
     
-    auto sink = slick_logger::Logger::instance().get_sink("args_sink");
+    auto sink = slick::logger::Logger::instance().get_sink("args_sink");
     ASSERT_TRUE(sink != nullptr);
     
     // Test logging with various argument types
@@ -464,7 +464,7 @@ TEST_F(SinkTest, SinkDirectLoggingWithArgs) {
     sink->log_error("Failed with code {}: {}", 404, "Not Found");
     sink->log_warn("Warning: {:.2f}% complete", 85.7);
     
-    slick_logger::Logger::instance().reset();
+    slick::logger::Logger::instance().reset();
     
     // Verify formatted output
     ASSERT_TRUE(std::filesystem::exists("args_sink.log"));
@@ -480,15 +480,15 @@ TEST_F(SinkTest, SinkDirectLoggingWithArgs) {
 
 TEST_F(SinkTest, SinkDirectLoggingLevelFiltering) {
     // Test that sink-level filtering works with direct logging
-    slick_logger::Logger::instance().clear_sinks();
-    slick_logger::Logger::instance().add_file_sink("filtered_sink.log", "filtered");
-    slick_logger::Logger::instance().init(1024);
+    slick::logger::Logger::instance().clear_sinks();
+    slick::logger::Logger::instance().add_file_sink("filtered_sink.log", "filtered");
+    slick::logger::Logger::instance().init(1024);
     
-    auto sink = slick_logger::Logger::instance().get_sink("filtered");
+    auto sink = slick::logger::Logger::instance().get_sink("filtered");
     ASSERT_TRUE(sink != nullptr);
     
     // Set sink to only accept WARN and above
-    sink->set_min_level(slick_logger::LogLevel::L_WARN);
+    sink->set_min_level(slick::logger::LogLevel::L_WARN);
     
     // These should be filtered out
     sink->log_trace("Should be filtered");
@@ -500,7 +500,7 @@ TEST_F(SinkTest, SinkDirectLoggingLevelFiltering) {
     sink->log_error("Error should appear");
     sink->log_fatal("Fatal should appear");
     
-    slick_logger::Logger::instance().reset();
+    slick::logger::Logger::instance().reset();
     
     // Verify filtering worked
     ASSERT_TRUE(std::filesystem::exists("filtered_sink.log"));
@@ -516,17 +516,17 @@ TEST_F(SinkTest, SinkDirectLoggingLevelFiltering) {
 }
 
 TEST_F(SinkTest, DedicatedSinkTest) {
-    slick_logger::Logger::instance().clear_sinks();
+    slick::logger::Logger::instance().clear_sinks();
 
     // Create a dedicated file sink
-    auto dedicated_sink = std::make_shared<slick_logger::FileSink>("dedicated_sink.log");
+    auto dedicated_sink = std::make_shared<slick::logger::FileSink>("dedicated_sink.log");
     dedicated_sink->set_dedicated(true);
-    slick_logger::Logger::instance().add_sink(dedicated_sink);
+    slick::logger::Logger::instance().add_sink(dedicated_sink);
 
     // Create a regular file sink
-    slick_logger::Logger::instance().add_file_sink("regular_sink.log");
+    slick::logger::Logger::instance().add_file_sink("regular_sink.log");
 
-    slick_logger::Logger::instance().init(1024);
+    slick::logger::Logger::instance().init(1024);
 
     // Log using LOG_INFO (broadcast to all non-dedicated sinks)
     LOG_INFO("Broadcast message to regular sinks only");
@@ -534,7 +534,7 @@ TEST_F(SinkTest, DedicatedSinkTest) {
     // Log directly to dedicated sink
     dedicated_sink->log_info("Direct message to dedicated sink");
 
-    slick_logger::Logger::instance().reset();
+    slick::logger::Logger::instance().reset();
 
     // Verify dedicated sink file contains only direct messages (should not receive broadcast messages)
     std::ifstream dedicated_file("dedicated_sink.log");
@@ -557,12 +557,12 @@ TEST_F(SinkTest, DedicatedSinkTest) {
 
 TEST_F(SinkTest, DailyFileSinkNoSizeRotationWhenZero) {
     // Test that size-based rotation is disabled when max_file_size is set to 0
-    slick_logger::RotationConfig config;
+    slick::logger::RotationConfig config;
     config.max_file_size = 0; // Disable size-based rotation
 
-    slick_logger::Logger::instance().clear_sinks();
-    slick_logger::Logger::instance().add_daily_file_sink("daily_no_size_rotation.log", config);
-    slick_logger::Logger::instance().init(1024);
+    slick::logger::Logger::instance().clear_sinks();
+    slick::logger::Logger::instance().add_daily_file_sink("daily_no_size_rotation.log", config);
+    slick::logger::Logger::instance().init(1024);
 
     // Log many messages that would normally trigger size-based rotation
     // Each message is around 100+ bytes, so 50 messages would exceed typical rotation size
@@ -570,7 +570,7 @@ TEST_F(SinkTest, DailyFileSinkNoSizeRotationWhenZero) {
         LOG_INFO("No size rotation test message number {} with enough text to exceed typical file size limits if rotation was enabled", i);
     }
 
-    slick_logger::Logger::instance().reset();
+    slick::logger::Logger::instance().reset();
 
     // Check that base file exists
     EXPECT_TRUE(std::filesystem::exists("daily_no_size_rotation.log"));
@@ -614,20 +614,20 @@ TEST_F(SinkTest, DailyFileSinkNoSizeRotationWhenZero) {
 
 TEST_F(SinkTest, DailyFileSinkMultipleSizeRotations) {
     // Test multiple size-based rotations within the same day
-    slick_logger::RotationConfig config;
+    slick::logger::RotationConfig config;
     config.max_file_size = 200; // Very small for testing
     config.max_files = 5; // Keep up to 5 rotated files
 
-    slick_logger::Logger::instance().clear_sinks();
-    slick_logger::Logger::instance().add_daily_file_sink("daily_multi_rotation.log", config);
-    slick_logger::Logger::instance().init(1024);
+    slick::logger::Logger::instance().clear_sinks();
+    slick::logger::Logger::instance().add_daily_file_sink("daily_multi_rotation.log", config);
+    slick::logger::Logger::instance().init(1024);
 
     // Log enough messages to trigger multiple rotations
     for (int i = 0; i < 30; ++i) {
         LOG_INFO("Multiple rotation test message number {} with enough text to trigger size rotation", i);
     }
 
-    slick_logger::Logger::instance().reset();
+    slick::logger::Logger::instance().reset();
 
     // Get current date
     auto now = std::chrono::system_clock::now();
@@ -673,7 +673,7 @@ TEST_F(SinkTest, DailyFileSinkMultipleSizeRotations) {
 
 TEST_F(SinkTest, DailyFileSinkRestartWithOldFile) {
     // Test that restarting with an old log file properly rotates it
-    slick_logger::RotationConfig config;
+    slick::logger::RotationConfig config;
     config.max_file_size = 1000;
 
     // Get yesterday's date for verification
@@ -701,14 +701,14 @@ TEST_F(SinkTest, DailyFileSinkRestartWithOldFile) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     // Now initialize the logger - it should rotate the old file
-    slick_logger::Logger::instance().clear_sinks();
-    slick_logger::Logger::instance().add_daily_file_sink("daily_restart_test.log", config);
-    slick_logger::Logger::instance().init(1024);
+    slick::logger::Logger::instance().clear_sinks();
+    slick::logger::Logger::instance().add_daily_file_sink("daily_restart_test.log", config);
+    slick::logger::Logger::instance().init(1024);
 
     // Log new messages for today
     LOG_INFO("New message after restart");
 
-    slick_logger::Logger::instance().reset();
+    slick::logger::Logger::instance().reset();
 
     // Verify the old file was rotated with yesterday's date
     std::string rotated_file = "daily_restart_test_" + yesterday_date + ".log";
@@ -746,7 +746,7 @@ TEST_F(SinkTest, DailyFileSinkRestartWithOldFile) {
 
 TEST_F(SinkTest, DailyFileSinkRestartWithExistingRotatedFiles) {
     // Test that restarting when rotated files already exist doesn't overwrite them
-    slick_logger::RotationConfig config;
+    slick::logger::RotationConfig config;
     config.max_file_size = 1000;
     config.max_files = 3;
 
@@ -780,13 +780,13 @@ TEST_F(SinkTest, DailyFileSinkRestartWithExistingRotatedFiles) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     // Initialize logger - should rotate without overwriting
-    slick_logger::Logger::instance().clear_sinks();
-    slick_logger::Logger::instance().add_daily_file_sink("daily_restart_existing.log", config);
-    slick_logger::Logger::instance().init(1024);
+    slick::logger::Logger::instance().clear_sinks();
+    slick::logger::Logger::instance().add_daily_file_sink("daily_restart_existing.log", config);
+    slick::logger::Logger::instance().init(1024);
 
     LOG_INFO("New content after restart");
 
-    slick_logger::Logger::instance().reset();
+    slick::logger::Logger::instance().reset();
 
     // Verify the original rotated file still exists
     EXPECT_TRUE(std::filesystem::exists(existing_rotated));
