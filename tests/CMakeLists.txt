@@ -8,7 +8,8 @@ if(BUILD_SLICK_LOGGER_TESTING)
         include(FetchContent)
         FetchContent_Declare(
             googletest
-            URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip
+            GIT_REPOSITORY https://github.com/google/googletest.git
+            GIT_TAG v1.17.0
         )
         # For Windows: Prevent overriding the parent project's compiler/linker settings
         set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
@@ -17,17 +18,17 @@ if(BUILD_SLICK_LOGGER_TESTING)
 
     add_executable(slick_logger_tests test_logger.cpp)
     target_include_directories(slick_logger_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-    target_link_libraries(slick_logger_tests slick_logger GTest::gtest_main)
+    target_link_libraries(slick_logger_tests slick::slick_logger GTest::gtest_main)
     add_test(NAME slick_logger_tests COMMAND slick_logger_tests)
 
     add_executable(slick_logger_sink_tests test_sinks.cpp)
     target_include_directories(slick_logger_sink_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-    target_link_libraries(slick_logger_sink_tests slick_logger GTest::gtest_main)
+    target_link_libraries(slick_logger_sink_tests slick::slick_logger GTest::gtest_main)
     add_test(NAME slick_logger_sink_tests COMMAND slick_logger_sink_tests)
 
     add_executable(slick_logger_timestamp_tests test_timestamp.cpp)
     target_include_directories(slick_logger_timestamp_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-    target_link_libraries(slick_logger_timestamp_tests slick_logger GTest::gtest_main)
+    target_link_libraries(slick_logger_timestamp_tests slick::slick_logger GTest::gtest_main)
     add_test(NAME slick_logger_timestamp_tests COMMAND slick_logger_timestamp_tests)
     
 else()

@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.20)
 
-set(BUILD_VERSION 1.0.0.8)
-project(slick_logger VERSION ${BUILD_VERSION} LANGUAGES CXX)
+project(slick_logger 
+    VERSION 1.0.1
+    LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -13,7 +14,7 @@ set(BUILD_SLICK_QUEUE_TESTS OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
     slick_queue
     GIT_REPOSITORY https://github.com/SlickQuant/slick_queue.git
-    GIT_TAG v1.1.0.2
+    GIT_TAG v1.1.2
 )
 FetchContent_MakeAvailable(slick_queue)
 
@@ -36,11 +37,12 @@ endif()
 
 # Add header-only library
 add_library(slick_logger INTERFACE)
+add_library(slick::slick_logger ALIAS slick_logger)
 target_include_directories(slick_logger INTERFACE 
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(slick_logger INTERFACE slick_queue)
+target_link_libraries(slick_logger INTERFACE slick::slick_queue)
 
 message(STATUS "Slick Queue: ${slick_queue_SOURCE_DIR}")
 
@@ -70,7 +72,39 @@ endif()
 # Installation rules
 install(DIRECTORY include/ DESTINATION include)
 
-message(STATUS "slick_logger: ${BUILD_VERSION}")
+# Install CMake package configuration files for vcpkg
+install(TARGETS slick_logger EXPORT slick_loggerTargets)
+
+install(EXPORT slick_loggerTargets
+    FILE slick_loggerTargets.cmake
+    NAMESPACE slick::
+    DESTINATION share/slick_logger
+)
+
+include(CMakePackageConfigHelpers)
+
+# Generate the config file
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/slick_loggerConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/slick_loggerConfig.cmake
+    INSTALL_DESTINATION share/slick_logger
+)
+
+# Generate version file
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/slick_loggerConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+# Install config files
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/slick_loggerConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/slick_loggerConfigVersion.cmake
+    DESTINATION share/slick_logger
+)
+
+message(STATUS "slick_logger: ${PROJECT_VERSION}")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     add_custom_target(dist_slick_logger ALL
@@ -82,7 +116,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
 
     if (PROJECT_IS_TOP_LEVEL)
         add_custom_target(package_slick_logger ALL
-            COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_BINARY_DIR}/dist/slick_logger_${BUILD_VERSION}.zip" --format=zip "include"
+            COMMAND ${CMAKE_COMMAND} -E tar "cfv" "${CMAKE_BINARY_DIR}/dist/slick_logger_${PROJECT_VERSION}.zip" --format=zip "include"
             WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/dist"
             COMMENT "Creating zip archive"
         )

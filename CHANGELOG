@@ -1,3 +1,9 @@
+# v1.0.1 - 11-14-2025
+- Update slick_queue to v1.1.2
+- Added vcpkg integration
+- Changed version number to three digits
+- Added alias targets
+
 # v1.0.0.8 - 10-21-2025
 - Update slick_queue to v1.1.0.2
 - Change include folder from include/slick_logger to include/slick

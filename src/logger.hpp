@@ -54,8 +54,7 @@
 #define SLICK_LOGGER_VERSION_MAJOR @slick_logger_VERSION_MAJOR@
 #define SLICK_LOGGER_VERSION_MINOR @slick_logger_VERSION_MINOR@
 #define SLICK_LOGGER_VERSION_PATCH @slick_logger_VERSION_PATCH@
-#define SLICK_LOGGER_VERSION_TWEAK @slick_logger_VERSION_TWEAK@
-#define SLICK_LOGGER_VERSION "@slick_logger_VERSION_MAJOR@.@slick_logger_VERSION_MINOR@.@slick_logger_VERSION_PATCH@.@slick_logger_VERSION_TWEAK@"
+#define SLICK_LOGGER_VERSION "@slick_logger_VERSION_MAJOR@.@slick_logger_VERSION_MINOR@.@slick_logger_VERSION_PATCH@"
 
 #ifndef SLICK_LOGGER_MAX_ARGS
 #define SLICK_LOGGER_MAX_ARGS 20
