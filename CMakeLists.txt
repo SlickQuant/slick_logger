@@ -78,7 +78,7 @@ install(TARGETS slick_logger EXPORT slick_loggerTargets)
 install(EXPORT slick_loggerTargets
     FILE slick_loggerTargets.cmake
     NAMESPACE slick::
-    DESTINATION share/slick_logger
+    DESTINATION lib/cmake/slick_logger
 )
 
 include(CMakePackageConfigHelpers)
@@ -87,7 +87,7 @@ include(CMakePackageConfigHelpers)
 configure_package_config_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/slick_loggerConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/slick_loggerConfig.cmake
-    INSTALL_DESTINATION share/slick_logger
+    INSTALL_DESTINATION lib/cmake/slick_logger
 )
 
 # Generate version file
@@ -101,7 +101,7 @@ write_basic_package_version_file(
 install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/slick_loggerConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/slick_loggerConfigVersion.cmake
-    DESTINATION share/slick_logger
+    DESTINATION lib/cmake/slick_logger
 )
 
 message(STATUS "slick_logger: ${PROJECT_VERSION}")
